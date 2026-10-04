@@ -13,6 +13,6 @@ class LoginTest extends TestCase
     public function test_login_route_exists(): void
     {
         $this->postJson(route('api.v1.auth.login'))
-            ->assertOk();
+            ->assertUnprocessable();
     }
 }
