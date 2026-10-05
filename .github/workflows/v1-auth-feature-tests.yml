@@ -29,5 +29,5 @@ jobs:
       - name: Generate key
         run: php artisan key:generate
 
-      - name: Run v1 feature tests
+      - name: Run v1 auth feature tests
         run: php artisan test tests/Feature/v1/Auth
