@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\v1\Auth\LoginController;
 use App\Http\Controllers\v1\Auth\LogoutController;
+use App\Http\Controllers\v1\Auth\SignupController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')
@@ -12,4 +13,6 @@ Route::prefix('auth')
     Route::post('logout', LogoutController::class)
     ->middleware(['auth:web'])
     ->name('logout');
+
+    Route::post('signup', SignupController::class)->name('signup');
 });

@@ -22,15 +22,15 @@ class SignupRequest extends FormRequest
      */
     public function rules(): array
     {
-        $userMaxNameLength = config('custom.user.name.max_length');
-        $userMinNameLength = config('custom.user.name.min_length');
+        $userNameMaxLength = config('custom.user.name.max_length');
+        $userNameMinLength = config('custom.user.name.min_length');
 
         return [
             'name' => [
                 'required',
                 'string',
-                "max:{$userMaxNameLength}",
-                "min:{$userMinNameLength}"
+                "max:{$userNameMaxLength}",
+                "min:{$userNameMinLength}"
             ],
             'email' => [
                 'required',
