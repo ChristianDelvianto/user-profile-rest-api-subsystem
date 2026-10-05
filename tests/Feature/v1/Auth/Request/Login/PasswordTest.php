@@ -6,29 +6,18 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Http\UploadedFile;
-use Override;
 use Tests\TestCase;
 
 class PasswordTest extends TestCase
 {
     use RefreshDatabase, WithFaker;
 
-    protected string $password;
-    protected User $user;
-
-    #[Override]
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->password = 'password';
-        $this->user = User::factory()->create(['password' => $this->password]);
-    }
+    protected string $password = 'password';
 
     public function test_password_input_with_array_value_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.login'), [
-                'email' => $this->user->email,
+                'email' => fake()->email(),
                 'password' => ['abc', 'def']
             ])
             ->assertUnprocessable()
@@ -40,7 +29,7 @@ class PasswordTest extends TestCase
         $shortPassword = substr($this->password, 0, 7);
 
         $this->postJson(route('api.v1.auth.login'), [
-                'email' => $this->user->email,
+                'email' => fake()->email(),
                 'password' => $shortPassword
             ])
             ->assertUnprocessable()
@@ -57,7 +46,7 @@ class PasswordTest extends TestCase
         }
 
         $this->postJson(route('api.v1.auth.login'), [
-                'email' => $this->user->email,
+                'email' => fake()->email(),
                 'password' => $password
             ])
             ->assertUnprocessable()
@@ -76,10 +65,7 @@ class PasswordTest extends TestCase
         $this->assertTrue(strlen($password) === 255);
 
         // Custom user that has password length 255
-        $user = User::factory()
-            ->create(['password' => $password]);
-
-        $this->assertFalse($this->user->id === $user->id);
+        $user = User::factory()->create(['password' => $password]);
 
         $this->postJson(route('api.v1.auth.login'), [
                 'email' => $user->email,
@@ -96,7 +82,7 @@ class PasswordTest extends TestCase
             ->size(1024);
 
         $this->postJson(route('api.v1.auth.login'), [
-                'email' => $this->user->email,
+                'email' => fake()->email(),
                 'password' => $fakeImage
             ])
             ->assertUnprocessable()
@@ -111,7 +97,7 @@ class PasswordTest extends TestCase
         $invalidPassword = $this->password .= '123';
 
         $this->postJson(route('api.v1.auth.login'), [
-                'email' => $this->user->email,
+                'email' => fake()->email(),
                 'password' => $invalidPassword
             ])
             ->assertUnprocessable()
@@ -123,7 +109,7 @@ class PasswordTest extends TestCase
         $invalidPassword = $this->password .= '123';
 
         $this->postJson(route('api.v1.auth.login'), [
-                'email' => $this->user->email,
+                'email' => fake()->email(),
                 'password' => $invalidPassword
             ])
             ->assertUnprocessable();
@@ -132,7 +118,7 @@ class PasswordTest extends TestCase
     public function test_password_input_with_min_character_length_but_has_invalid_value_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.login'), [
-                'email' => $this->user->email,
+                'email' => fake()->email(),
                 'password' => 'passw0rd'
             ])
             ->assertUnprocessable()
@@ -142,7 +128,7 @@ class PasswordTest extends TestCase
     public function test_password_input_with_no_key_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.login'), [
-                'email' => $this->user->email
+                'email' => fake()->email()
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrorFor('password');
@@ -151,7 +137,7 @@ class PasswordTest extends TestCase
     public function test_password_input_with_no_value_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.login'), [
-                'email' => $this->user->email,
+                'email' => fake()->email(),
                 'password' => ''
             ])
             ->assertUnprocessable()
@@ -160,8 +146,10 @@ class PasswordTest extends TestCase
 
     public function test_password_input_with_valid_password_will_pass(): void
     {
+        $user = User::factory()->create(['password' => $this->password]);
+
         $this->postJson(route('api.v1.auth.login'), [
-                'email' => $this->user->email,
+                'email' => $user->email,
                 'password' => $this->password
             ])
             ->assertOk();
