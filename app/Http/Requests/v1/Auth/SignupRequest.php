@@ -12,7 +12,7 @@ class SignupRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -22,8 +22,29 @@ class SignupRequest extends FormRequest
      */
     public function rules(): array
     {
+        $userMaxNameLength = config('custom.user.name.max_length');
+        $userMinNameLength = config('custom.user.name.min_length');
+
         return [
-            //
+            'name' => [
+                'required',
+                'string',
+                "max:{$userMaxNameLength}",
+                "min:{$userMinNameLength}"
+            ],
+            'email' => [
+                'required',
+                'string',
+                'email',
+                'max:255'
+            ],
+            'password' => [
+                'required',
+                'string',
+                'confirmed',
+                'min:8',
+                'max:255'
+            ]
         ];
     }
 }
