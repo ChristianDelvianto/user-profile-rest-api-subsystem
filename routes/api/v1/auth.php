@@ -10,6 +10,6 @@ Route::prefix('auth')
     Route::post('login', LoginController::class)->name('login');
 
     Route::post('logout', LogoutController::class)
-    ->middleware(['auth'])
+    ->middleware(['auth:web'])
     ->name('logout');
 });
