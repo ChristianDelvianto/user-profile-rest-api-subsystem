@@ -22,12 +22,6 @@ class LoginTest extends TestCase
         $this->user = User::factory()->create();
     }
 
-    public function test_login_route_exists(): void
-    {
-        $this->postJson(route('api.v1.auth.login'))
-            ->assertUnprocessable();
-    }
-
     public function test_can_login_successfully(): void
     {
         $this->postJson(route('api.v1.auth.login'), [
@@ -55,11 +49,22 @@ class LoginTest extends TestCase
         $this->assertGuest();
     }
 
-    // This will be in SignupTest
-    public function test_password_hash_using_argon2id(): void
+    public function test_login_route_exists(): void
     {
-        $user = User::factory()->create();
+        $this->postJson(route('api.v1.auth.login'))
+            ->assertUnprocessable();
+    }
 
-        $this->assertTrue(str_contains($user->password, 'argon2id'));
+    public function test_successful_login_response_contains_expected_fields(): void
+    {
+        $this->postJson(route('api.v1.auth.login'), [
+                'email' => $this->user->email,
+                'password' => 'password'
+            ])
+            ->assertOk()
+            ->assertJsonStructure([
+                'is_verified',
+                'profile'
+            ]);
     }
 }
