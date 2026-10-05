@@ -15,11 +15,11 @@ class LogoutTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $this->actingAs($user)
+        $this->actingAs($user, 'web')
             ->postJson(route('api.v1.auth.logout'))
             ->assertNoContent();
 
-        $this->assertGuest();
+        $this->assertGuest('web');
     }
 
     public function test_logout_route_exists(): void

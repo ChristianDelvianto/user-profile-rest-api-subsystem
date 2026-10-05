@@ -30,7 +30,8 @@ class LoginTest extends TestCase
             ])
             ->assertOk();
 
-        $this->assertAuthenticatedAs($this->user);
+        $this->assertAuthenticated('web')
+            ->assertAuthenticatedAs($this->user);
     }
 
     public function test_can_relogin_successfully(): void
@@ -41,12 +42,13 @@ class LoginTest extends TestCase
             ])
             ->assertOk();
 
-        $this->assertAuthenticatedAs($this->user);
+        $this->assertAuthenticated('web')
+            ->assertAuthenticatedAs($this->user);
 
         $this->postJson(route('api.v1.auth.logout'))
             ->assertNoContent();
 
-        $this->assertGuest();
+        $this->assertGuest('web');
     }
 
     public function test_login_route_exists(): void
