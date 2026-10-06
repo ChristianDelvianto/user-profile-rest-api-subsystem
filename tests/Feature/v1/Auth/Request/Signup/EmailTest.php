@@ -62,7 +62,7 @@ class EmailTest extends TestCase
     public function test_email_input_with_no_key_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
-                'name' => fake()->email(),
+                'name' => fake()->name(),
                 'password' => $this->password,
                 'password_confirmation' => $this->password
             ])
