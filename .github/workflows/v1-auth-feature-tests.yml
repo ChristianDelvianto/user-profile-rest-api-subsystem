@@ -40,7 +40,7 @@ jobs:
         run: composer install --no-interaction --prefer-dist
 
       - name: Prepare environment
-        run: cp .env.example .env
+        run: cp .env.testing .env
 
       - name: Generate key
         run: php artisan key:generate
