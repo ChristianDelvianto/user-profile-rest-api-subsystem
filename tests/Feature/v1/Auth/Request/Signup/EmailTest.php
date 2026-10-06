@@ -26,6 +26,8 @@ class EmailTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrorFor('email');
+
+        $this->assertDatabaseCount(User::class, 1);
     }
 
     public function test_email_input_with_array_value_will_throw_422_error(): void
@@ -114,6 +116,8 @@ class EmailTest extends TestCase
                 'password_confirmation' => $this->password
             ])
             ->assertNoContent();
+
+        $this->assertDatabaseHas(User::class, ['email' => $email]);
     }
 
     public function test_email_input_with_valid_email_but_has_more_than_255_character_length_will_throw_422_error(): void
@@ -139,12 +143,16 @@ class EmailTest extends TestCase
 
     public function test_email_input_with_valid_email_will_pass(): void
     {
+        $email = fake()->email();
+
         $this->postJson(route('api.v1.auth.signup'), [
                 'name' => fake()->name(),
-                'email' => fake()->email(),
+                'email' => $email,
                 'password' => $this->password,
                 'password_confirmation' => $this->password
             ])
             ->assertNoContent();
+
+        $this->assertDatabaseHas(User::class, ['email' => $email]);
     }
 }
