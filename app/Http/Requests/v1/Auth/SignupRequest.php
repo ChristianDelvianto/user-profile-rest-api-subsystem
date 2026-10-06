@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\v1\Auth;
 
+use App\Rules\AlphaNumSpaces;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -30,7 +31,8 @@ class SignupRequest extends FormRequest
                 'required',
                 'string',
                 "max:{$userNameMaxLength}",
-                "min:{$userNameMinLength}"
+                "min:{$userNameMinLength}",
+                new AlphaNumSpaces
             ],
             'email' => [
                 'required',

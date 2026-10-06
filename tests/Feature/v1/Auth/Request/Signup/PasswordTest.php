@@ -11,6 +11,7 @@ class PasswordTest extends TestCase
 {
     use RefreshDatabase, WithFaker;
 
+    protected string $name = 'Test User';
     protected string $password = 'password';
 
     public function test_password_input_with_array_value_will_throw_422_error(): void
@@ -18,7 +19,7 @@ class PasswordTest extends TestCase
         $password = ['abc', 'def'];
 
         $this->postJson(route('api.v1.auth.signup'), [
-                'name' => fake()->name(),
+                'name' => $this->name,
                 'email' => fake()->email(),
                 'password' => $password,
                 'password_confirmation' => $password
@@ -32,7 +33,7 @@ class PasswordTest extends TestCase
         $shortPassword = substr($this->password, 0, 7);
 
         $this->postJson(route('api.v1.auth.signup'), [
-                'name' => fake()->name(),
+                'name' => $this->name,
                 'email' => fake()->email(),
                 'password' => $shortPassword,
                 'password_confirmation' => $shortPassword
@@ -51,7 +52,7 @@ class PasswordTest extends TestCase
         }
 
         $this->postJson(route('api.v1.auth.signup'), [
-                'name' => fake()->name(),
+                'name' => $this->name,
                 'email' => fake()->email(),
                 'password' => $password,
                 'password_confirmation' => $password
@@ -66,27 +67,10 @@ class PasswordTest extends TestCase
         $differentPassword .= '1';
 
         $this->postJson(route('api.v1.auth.signup'), [
-                'name' => fake()->name(),
+                'name' => $this->name,
                 'email' => fake()->email(),
                 'password' => $this->password,
                 'password_confirmation' => $differentPassword
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('password');
-    }
-
-    public function test_password_input_with_image_file_value_will_throw_422_error(): void
-    {
-        // GD extension required for creating fake image
-        $fakeImage = UploadedFile::fake()
-            ->image('test_image.jpg')
-            ->size(1024);
-
-        $this->postJson(route('api.v1.auth.signup'), [
-                'name' => fake()->name(),
-                'email' => fake()->email(),
-                'password' => $fakeImage,
-                'password_confirmation' => $fakeImage
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrorFor('password');
@@ -102,7 +86,7 @@ class PasswordTest extends TestCase
         }
 
         $this->postJson(route('api.v1.auth.signup'), [
-                'name' => fake()->name(),
+                'name' => $this->name,
                 'email' => fake()->email(),
                 'password' => $password,
                 'password_confirmation' => $password
@@ -110,10 +94,27 @@ class PasswordTest extends TestCase
             ->assertNoContent();
     }
 
+    public function test_password_input_with_image_file_value_will_throw_422_error(): void
+    {
+        // GD extension required for creating fake image
+        $fakeImage = UploadedFile::fake()
+            ->image('test_image.jpg')
+            ->size(1024);
+
+        $this->postJson(route('api.v1.auth.signup'), [
+                'name' => $this->name,
+                'email' => fake()->email(),
+                'password' => $fakeImage,
+                'password_confirmation' => $fakeImage
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('password');
+    }
+
     public function test_password_input_with_no_main_password_key_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
-                'name' => fake()->name(),
+                'name' => $this->name,
                 'email' => fake()->email(),
                 'password_confirmation' => $this->password
             ])
@@ -124,7 +125,7 @@ class PasswordTest extends TestCase
     public function test_password_input_with_no_main_password_value_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
-                'name' => fake()->name(),
+                'name' => $this->name,
                 'email' => fake()->email(),
                 'password' => '',
                 'password_confirmation' => $this->password
@@ -136,7 +137,7 @@ class PasswordTest extends TestCase
     public function test_password_input_with_no_password_confirmation_key_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
-                'name' => fake()->name(),
+                'name' => $this->name,
                 'email' => fake()->email(),
                 'password' => $this->password
             ])
@@ -147,7 +148,7 @@ class PasswordTest extends TestCase
     public function test_password_input_with_no_password_confirmation_value_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
-                'name' => fake()->name(),
+                'name' => $this->name,
                 'email' => fake()->email(),
                 'password' => $this->password,
                 'password_confirmation' => ''
@@ -159,7 +160,7 @@ class PasswordTest extends TestCase
     public function test_password_input_with_valid_password_will_pass(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
-                'name' => fake()->name(),
+                'name' => $this->name,
                 'email' => fake()->email(),
                 'password' => $this->password,
                 'password_confirmation' => $this->password

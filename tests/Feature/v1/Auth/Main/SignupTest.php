@@ -13,12 +13,13 @@ class SignupTest extends TestCase
     use RefreshDatabase, WithFaker;
 
     protected string $email = 'test@example.com';
+    protected string $name = 'Test User';
     protected string $password = 'password';
 
     public function test_can_signup_successfully(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
-                'name' => fake()->name(),
+                'name' => $this->name,
                 'email' => $this->email,
                 'password' => $this->password,
                 'password_confirmation' => $this->password
@@ -31,14 +32,16 @@ class SignupTest extends TestCase
     public function test_signup_will_hash_password_using_argon2id(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
-                'name' => fake()->name(),
+                'name' => $this->name,
                 'email' => $this->email,
                 'password' => $this->password,
                 'password_confirmation' => $this->password
             ])
             ->assertNoContent();
 
-        $user = User::where('email', $this->email)->firstOrFail();
+        $this->assertDatabaseHas(User::class, ['email' => $this->email]);
+
+        $user = User::where('email', $this->email)->first();
 
         $this->assertTrue(str_contains($user->password, 'argon2id'));
 
