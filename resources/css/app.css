@@ -9,3 +9,21 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+@layer base {
+    html, body, #app {
+        @apply h-full leading-normal min-h-full min-w-full w-full;
+    }
+
+    body {
+        @apply antialiased font-sans overflow-y-scroll text-[15px] text-neutral-900;
+    }
+
+    button:disabled, input:disabled, select:disabled {
+        @apply cursor-not-allowed;
+    }
+
+    button, input[type='button'] {
+        @apply cursor-pointer;
+    }
+}
