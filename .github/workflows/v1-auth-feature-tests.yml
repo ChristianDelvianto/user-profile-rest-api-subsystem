@@ -9,6 +9,22 @@ jobs:
   tests:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: laravel_test
+          POSTGRES_USER: laravel_user
+          POSTGRES_PASSWORD: laravel_password
+        ports:
+          - 5432:5432
+        # Ensure postgres is healthy before running steps
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -17,7 +33,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: mbstring, pdo_sqlite
+          extensions: mbstring, pdo_pgsql
           coverage: xdebug
 
       - name: Install dependencies
@@ -30,4 +46,11 @@ jobs:
         run: php artisan key:generate
 
       - name: Run v1 auth feature tests
-        run: php artisan test tests/Feature/v1/Auth
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: laravel_test
+          DB_USERNAME: laravel_user
+          DB_PASSWORD: laravel_password
+        run: ./vendor/bin/phpunit tests/Feature/v1/Auth
