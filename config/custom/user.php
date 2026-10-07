@@ -2,8 +2,8 @@
 
 return [
     'name' => [
-        'max_length' => (int) env('USER_MAX_NAME_LENGTH', 50),
+        'max_length' => (int) env('USER_NAME_MAX_LENGTH', 50),
 
-        'min_length' => (int) env('USER_MIN_NAME_LENGTH', 2)
+        'min_length' => (int) env('USER_NAME_MIN_LENGTH', 2)
     ]
 ];
