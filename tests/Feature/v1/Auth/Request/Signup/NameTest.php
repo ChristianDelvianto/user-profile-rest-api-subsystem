@@ -13,8 +13,10 @@ class NameTest extends TestCase
 {
     use RefreshDatabase, WithFaker;
 
+    protected string $email = 'test_user@example.com';
     protected int $userNameMaxLength;
     protected int $userNameMinLength;
+    protected string $username = 'test_user';
 
     #[Override]
     protected function setUp(): void
@@ -30,8 +32,9 @@ class NameTest extends TestCase
         $user = User::factory()->create(['name' => 'Test User']);
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $user->name,
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => 'password',
                 'password_confirmation' => 'password'
             ])
@@ -43,8 +46,9 @@ class NameTest extends TestCase
     public function test_name_input_with_array_value_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => ['abc', 'def'],
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => 'password',
                 'password_confirmation' => 'password'
             ])
@@ -63,8 +67,9 @@ class NameTest extends TestCase
         $this->assertTrue(strlen($name) === $this->userNameMaxLength);
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $name,
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => 'password',
                 'password_confirmation' => 'password'
             ])
@@ -81,8 +86,9 @@ class NameTest extends TestCase
             ->size(1024);
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $fakeImage,
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => 'password',
                 'password_confirmation' => 'password'
             ])
@@ -93,7 +99,7 @@ class NameTest extends TestCase
     public function test_name_input_with_no_key_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => 'password',
                 'password_confirmation' => 'password'
             ])
@@ -104,8 +110,9 @@ class NameTest extends TestCase
     public function test_name_input_with_no_value_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => '',
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => 'password',
                 'password_confirmation' => 'password'
             ])
@@ -116,8 +123,9 @@ class NameTest extends TestCase
     public function test_name_input_with_spaces_only_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => '  ',
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => 'password',
                 'password_confirmation' => 'password'
             ])
@@ -137,8 +145,9 @@ class NameTest extends TestCase
         $this->assertTrue(strlen($name) > $this->userNameMaxLength);
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $name,
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => 'password',
                 'password_confirmation' => 'password'
             ])
@@ -158,8 +167,9 @@ class NameTest extends TestCase
         $this->assertTrue(strlen($name) < $this->userNameMinLength);
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $name,
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => 'password',
                 'password_confirmation' => 'password'
             ])
@@ -172,8 +182,9 @@ class NameTest extends TestCase
         $name = '  Test User';
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $name,
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => 'password',
                 'password_confirmation' => 'password'
             ])
@@ -187,8 +198,9 @@ class NameTest extends TestCase
         $name = 'Test User  ';
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $name,
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => 'password',
                 'password_confirmation' => 'password'
             ])
@@ -202,8 +214,9 @@ class NameTest extends TestCase
         $name = ' Test User ';
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $name,
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => 'password',
                 'password_confirmation' => 'password'
             ])
@@ -217,8 +230,9 @@ class NameTest extends TestCase
         $name = 'Test User';
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $name,
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => 'password',
                 'password_confirmation' => 'password'
             ])
@@ -229,9 +243,12 @@ class NameTest extends TestCase
 
     public function test_name_input_with_weird_characters_will_throw_422_error(): void
     {
+        $name = 'ab 12!@_$';
+
         $this->postJson(route('api.v1.auth.signup'), [
-                'name' => 'ab 12!@_$',
-                'email' => fake()->email(),
+                'username' => $this->username,
+                'name' => $name,
+                'email' => $this->email,
                 'password' => 'password',
                 'password_confirmation' => 'password'
             ])

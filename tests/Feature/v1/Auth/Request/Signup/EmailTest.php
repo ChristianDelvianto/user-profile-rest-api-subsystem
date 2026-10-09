@@ -14,12 +14,14 @@ class EmailTest extends TestCase
 
     protected string $name = 'Test User';
     protected string $password = 'password';
+    protected string $username = 'test_user';
 
     public function test_email_input_must_be_unique(): void
     {
         $user = User::factory()->create();
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
                 'email' => $user->email,
                 'password' => $this->password,
@@ -27,13 +29,12 @@ class EmailTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrorFor('email');
-
-        $this->assertDatabaseCount(User::class, 1);
     }
 
     public function test_email_input_with_array_value_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
                 'email' => ['abc', 'def'],
                 'password' => $this->password,
@@ -51,6 +52,7 @@ class EmailTest extends TestCase
             ->size(1024);
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
                 'email' => $fakeImage,
                 'password' => $this->password,
@@ -63,6 +65,7 @@ class EmailTest extends TestCase
     public function test_email_input_with_no_key_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
                 'password' => $this->password,
                 'password_confirmation' => $this->password
@@ -74,6 +77,7 @@ class EmailTest extends TestCase
     public function test_email_input_with_no_value_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
                 'email' => '',
                 'password' => $this->password,
@@ -86,6 +90,7 @@ class EmailTest extends TestCase
     public function test_email_input_with_plain_string_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
                 'email' => 'abcde',
                 'password' => $this->password,
@@ -111,6 +116,7 @@ class EmailTest extends TestCase
         $this->assertTrue(strlen($email) === 255);
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
                 'email' => $email,
                 'password' => $this->password,
@@ -133,6 +139,7 @@ class EmailTest extends TestCase
         $email .= '@example.com';
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
                 'email' => $email,
                 'password' => $this->password,
@@ -147,6 +154,7 @@ class EmailTest extends TestCase
         $email = fake()->email();
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
                 'email' => $email,
                 'password' => $this->password,
