@@ -51,7 +51,7 @@ class UserFactory extends Factory
     public function hasAbout(): static
     {
         return $this->state(fn (array $attributes) => [
-            'about' => fake()->words(rand(6, 18), true)
+            'about' => fake()->paragraphs(rand(1, 2), true)
         ]);
     }
 }
