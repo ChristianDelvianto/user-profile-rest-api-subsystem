@@ -9,4 +9,5 @@ Route::prefix('v1')
 ->middleware(['web'])
 ->group(function () {
     require __DIR__ . '/auth.php';
+    require __DIR__ . '/user.php';
 });
