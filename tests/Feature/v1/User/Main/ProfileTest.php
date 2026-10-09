@@ -23,13 +23,13 @@ class ProfileTest extends TestCase
         $this->user = User::factory()->create();
     }
 
-    public function test_user_can_be_fetch_successfully(): void
+    public function test_user_profile_can_be_fetch_successfully(): void
     {
         $this->getJson(route('api.v1.user.profile', ['user' => $this->user->username]))
             ->assertOk();
     }
 
-    public function test_user_can_be_fetch_successfully_using_case_insensitive_username(): void
+    public function test_user_profile_can_be_fetch_successfully_using_case_insensitive_username(): void
     {
         $username = strtoupper($this->user->username);
 
@@ -53,5 +53,17 @@ class ProfileTest extends TestCase
             ->assertJsonStructure([
                 'profile'
             ]);
+    }
+
+    public function test_user_profile_route_exists(): void
+    {
+        $this->getJson(route('api.v1.user.profile', ['user' => $this->user->username]))
+            ->assertOk();
+    }
+
+    public function test_user_profile_route_for_non_existed_user_will_throw_404_error(): void
+    {
+        $this->getJson(route('api.v1.user.profile', ['user' => 'no_user']))
+            ->assertNotFound();
     }
 }
