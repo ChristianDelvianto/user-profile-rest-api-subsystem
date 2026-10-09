@@ -33,7 +33,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: mbstring, pdo_sqlite
+          extensions: mbstring, pdo_pgsql
           coverage: xdebug
 
       - name: Install dependencies
@@ -45,5 +45,12 @@ jobs:
       - name: Generate key
         run: php artisan key:generate
 
-      - name: Run v1 feature tests
+      - name: Run v1 user feature tests
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: laravel_test
+          DB_USERNAME: laravel_user
+          DB_PASSWORD: laravel_password
         run: php artisan test tests/Feature/v1/User
