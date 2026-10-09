@@ -25,11 +25,13 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
+            'username' => fake()->unique()->userName(),
             'name' => fake()->name(),
+            'about' => null,
             'email' => fake()->unique()->safeEmail(),
-            'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'email_verified_at' => now(),
         ];
     }
 
@@ -40,6 +42,16 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
+        ]);
+    }
+
+    /**
+     * Indicate that the model has 'about' column.
+     */
+    public function hasAbout(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'about' => fake()->paragraphs(rand(1, 2), true)
         ]);
     }
 }
