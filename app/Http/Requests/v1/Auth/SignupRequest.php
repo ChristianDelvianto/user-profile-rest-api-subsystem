@@ -3,6 +3,7 @@
 namespace App\Http\Requests\v1\Auth;
 
 use App\Rules\AlphaNumSpaces;
+use App\Rules\UsernameRegex;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -32,8 +33,10 @@ class SignupRequest extends FormRequest
             'username' => [
                 'required',
                 'string',
+                'unique:users,username',
                 "max:{$userUsernameMaxLength}",
-                "min:{$userUsernameMinLength}"
+                "min:{$userUsernameMinLength}",
+                new UsernameRegex
             ],
             'name' => [
                 'required',
