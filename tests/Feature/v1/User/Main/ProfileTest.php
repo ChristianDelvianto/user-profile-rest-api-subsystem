@@ -31,11 +31,11 @@ class ProfileTest extends TestCase
 
     public function test_user_profile_can_be_fetch_successfully_using_case_insensitive_username(): void
     {
-        $username = strtoupper($this->user->username);
+        $differentUsername = strtoupper($this->user->username);
 
-        $this->assertTrue($this->user->username !== $username);
+        $this->assertFalse($this->user->username === $differentUsername);
 
-        $this->getJson(route('api.v1.user.profile', ['user' => $username]))
+        $this->getJson(route('api.v1.user.profile', ['user' => $differentUsername]))
             ->assertOk()
             ->assertJson(function (AssertableJson $json) {
                 $json->has('profile', function (AssertableJson $json) {
@@ -50,9 +50,27 @@ class ProfileTest extends TestCase
     {
         $this->getJson(route('api.v1.user.profile', ['user' => $this->user->username]))
             ->assertOk()
-            ->assertJsonStructure([
-                'profile'
-            ]);
+            ->assertJson(function (AssertableJson $json) {
+                $json->has('is_followed')
+                    ->has('profile')
+                    ->etc();
+            });
+    }
+
+    public function test_user_profile_response_has_is_followed_set_to_true_if_user_followed(): void
+    {
+        $follower = User::factory()->create();
+
+        $this->user->followers()->attach($follower->id);
+
+        $this->actingAs($follower, 'web')
+            ->getJson(route('api.v1.user.profile', ['user' => $this->user->username]))
+            ->assertOk()
+            ->assertJson(function (AssertableJson $json) {
+                $json->has('is_followed')
+                    ->where('is_followed', true)
+                    ->etc();
+            });
     }
 
     public function test_user_profile_route_exists(): void
