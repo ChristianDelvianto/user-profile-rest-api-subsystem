@@ -26,6 +26,8 @@ class UnfollowTest extends TestCase
     {
         $follower = User::factory()->create();
 
+        $this->user->followers()->attach($follower->id);
+
         $this->actingAs($follower, 'web')
             ->deleteJson(route('api.v1.user.unfollow', ['user' => $this->user->id]))
             ->assertNoContent();
