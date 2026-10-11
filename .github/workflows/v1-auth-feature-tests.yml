@@ -53,4 +53,4 @@ jobs:
           DB_DATABASE: laravel_test
           DB_USERNAME: laravel_user
           DB_PASSWORD: laravel_password
-        run: ./vendor/bin/phpunit tests/Feature/v1/Auth
+        run: php artisan test tests/Feature/v1/Auth

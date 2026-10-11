@@ -15,10 +15,12 @@ class SignupTest extends TestCase
     protected string $email = 'test@example.com';
     protected string $name = 'Test User';
     protected string $password = 'password';
+    protected string $username = 'test_user';
 
     public function test_can_signup_successfully(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
                 'email' => $this->email,
                 'password' => $this->password,
@@ -32,6 +34,7 @@ class SignupTest extends TestCase
     public function test_signup_will_hash_password_using_argon2id(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
                 'email' => $this->email,
                 'password' => $this->password,

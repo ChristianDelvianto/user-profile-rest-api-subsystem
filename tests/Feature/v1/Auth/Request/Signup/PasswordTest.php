@@ -11,16 +11,19 @@ class PasswordTest extends TestCase
 {
     use RefreshDatabase, WithFaker;
 
+    protected string $email = 'test_user@example.com';
     protected string $name = 'Test User';
     protected string $password = 'password';
+    protected string $username = 'test_user';
 
     public function test_password_input_with_array_value_will_throw_422_error(): void
     {
         $password = ['abc', 'def'];
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => $password,
                 'password_confirmation' => $password
             ])
@@ -33,8 +36,9 @@ class PasswordTest extends TestCase
         $shortPassword = substr($this->password, 0, 7);
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => $shortPassword,
                 'password_confirmation' => $shortPassword
             ])
@@ -52,8 +56,9 @@ class PasswordTest extends TestCase
         }
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => $password,
                 'password_confirmation' => $password
             ])
@@ -67,8 +72,9 @@ class PasswordTest extends TestCase
         $differentPassword .= '1';
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => $this->password,
                 'password_confirmation' => $differentPassword
             ])
@@ -86,8 +92,9 @@ class PasswordTest extends TestCase
         }
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => $password,
                 'password_confirmation' => $password
             ])
@@ -102,8 +109,9 @@ class PasswordTest extends TestCase
             ->size(1024);
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => $fakeImage,
                 'password_confirmation' => $fakeImage
             ])
@@ -114,8 +122,9 @@ class PasswordTest extends TestCase
     public function test_password_input_with_no_main_password_key_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password_confirmation' => $this->password
             ])
             ->assertUnprocessable()
@@ -125,8 +134,9 @@ class PasswordTest extends TestCase
     public function test_password_input_with_no_main_password_value_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => '',
                 'password_confirmation' => $this->password
             ])
@@ -137,8 +147,9 @@ class PasswordTest extends TestCase
     public function test_password_input_with_no_password_confirmation_key_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => $this->password
             ])
             ->assertUnprocessable()
@@ -148,8 +159,9 @@ class PasswordTest extends TestCase
     public function test_password_input_with_no_password_confirmation_value_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => $this->password,
                 'password_confirmation' => ''
             ])
@@ -160,8 +172,9 @@ class PasswordTest extends TestCase
     public function test_password_input_with_valid_password_will_pass(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $this->name,
-                'email' => fake()->email(),
+                'email' => $this->email,
                 'password' => $this->password,
                 'password_confirmation' => $this->password
             ])

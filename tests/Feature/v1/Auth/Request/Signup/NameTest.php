@@ -13,6 +13,9 @@ class NameTest extends TestCase
 {
     use RefreshDatabase, WithFaker;
 
+    protected string $email = 'test_user@example.com';
+    protected string $password = 'password';
+    protected string $username = 'test_user';
     protected int $userNameMaxLength;
     protected int $userNameMinLength;
 
@@ -30,10 +33,11 @@ class NameTest extends TestCase
         $user = User::factory()->create(['name' => 'Test User']);
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $user->name,
-                'email' => fake()->email(),
-                'password' => 'password',
-                'password_confirmation' => 'password'
+                'email' => $this->email,
+                'password' => $this->password,
+                'password_confirmation' => $this->password
             ])
             ->assertNoContent();
 
@@ -43,10 +47,11 @@ class NameTest extends TestCase
     public function test_name_input_with_array_value_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => ['abc', 'def'],
-                'email' => fake()->email(),
-                'password' => 'password',
-                'password_confirmation' => 'password'
+                'email' => $this->email,
+                'password' => $this->password,
+                'password_confirmation' => $this->password
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrorFor('name');
@@ -63,10 +68,11 @@ class NameTest extends TestCase
         $this->assertTrue(strlen($name) === $this->userNameMaxLength);
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $name,
-                'email' => fake()->email(),
-                'password' => 'password',
-                'password_confirmation' => 'password'
+                'email' => $this->email,
+                'password' => $this->password,
+                'password_confirmation' => $this->password
             ])
             ->assertNoContent();
 
@@ -81,10 +87,11 @@ class NameTest extends TestCase
             ->size(1024);
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $fakeImage,
-                'email' => fake()->email(),
-                'password' => 'password',
-                'password_confirmation' => 'password'
+                'email' => $this->email,
+                'password' => $this->password,
+                'password_confirmation' => $this->password
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrorFor('name');
@@ -93,9 +100,9 @@ class NameTest extends TestCase
     public function test_name_input_with_no_key_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
-                'email' => fake()->email(),
-                'password' => 'password',
-                'password_confirmation' => 'password'
+                'email' => $this->email,
+                'password' => $this->password,
+                'password_confirmation' => $this->password
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrorFor('name');
@@ -104,10 +111,11 @@ class NameTest extends TestCase
     public function test_name_input_with_no_value_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => '',
-                'email' => fake()->email(),
-                'password' => 'password',
-                'password_confirmation' => 'password'
+                'email' => $this->email,
+                'password' => $this->password,
+                'password_confirmation' => $this->password
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrorFor('name');
@@ -116,10 +124,11 @@ class NameTest extends TestCase
     public function test_name_input_with_spaces_only_will_throw_422_error(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => '  ',
-                'email' => fake()->email(),
-                'password' => 'password',
-                'password_confirmation' => 'password'
+                'email' => $this->email,
+                'password' => $this->password,
+                'password_confirmation' => $this->password
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrorFor('name');
@@ -137,10 +146,11 @@ class NameTest extends TestCase
         $this->assertTrue(strlen($name) > $this->userNameMaxLength);
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $name,
-                'email' => fake()->email(),
-                'password' => 'password',
-                'password_confirmation' => 'password'
+                'email' => $this->email,
+                'password' => $this->password,
+                'password_confirmation' => $this->password
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrorFor('name');
@@ -158,54 +168,58 @@ class NameTest extends TestCase
         $this->assertTrue(strlen($name) < $this->userNameMinLength);
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $name,
-                'email' => fake()->email(),
-                'password' => 'password',
-                'password_confirmation' => 'password'
+                'email' => $this->email,
+                'password' => $this->password,
+                'password_confirmation' => $this->password
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrorFor('name');
     }
 
-    public function test_name_input_with_valid_name_but_spaces_at_the_beginning_will_be_trimmed(): void
+    public function test_name_input_with_valid_name_but_has_spaces_at_the_beginning_will_pass(): void
     {
         $name = '  Test User';
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $name,
-                'email' => fake()->email(),
-                'password' => 'password',
-                'password_confirmation' => 'password'
+                'email' => $this->email,
+                'password' => $this->password,
+                'password_confirmation' => $this->password
             ])
             ->assertNoContent();
 
         $this->assertDatabaseHas(User::class, ['name' => trim($name)]);
     }
 
-    public function test_name_input_with_valid_name_but_spaces_at_the_end_will_be_trimmed(): void
+    public function test_name_input_with_valid_name_but_has_spaces_at_the_end_will_pass(): void
     {
         $name = 'Test User  ';
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $name,
-                'email' => fake()->email(),
-                'password' => 'password',
-                'password_confirmation' => 'password'
+                'email' => $this->email,
+                'password' => $this->password,
+                'password_confirmation' => $this->password
             ])
             ->assertNoContent();
 
         $this->assertDatabaseHas(User::class, ['name' => trim($name)]);
     }
 
-    public function test_name_input_with_valid_name_but_spaces_at_the_begininng_and_the_end_will_be_trimmed(): void
+    public function test_name_input_with_valid_name_but_has_spaces_at_the_begininng_and_the_end_will_pass(): void
     {
         $name = ' Test User ';
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $name,
-                'email' => fake()->email(),
-                'password' => 'password',
-                'password_confirmation' => 'password'
+                'email' => $this->email,
+                'password' => $this->password,
+                'password_confirmation' => $this->password
             ])
             ->assertNoContent();
 
@@ -217,25 +231,37 @@ class NameTest extends TestCase
         $name = 'Test User';
 
         $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
                 'name' => $name,
-                'email' => fake()->email(),
-                'password' => 'password',
-                'password_confirmation' => 'password'
+                'email' => $this->email,
+                'password' => $this->password,
+                'password_confirmation' => $this->password
             ])
             ->assertNoContent();
 
         $this->assertDatabaseCount(User::class, 1);
     }
 
-    public function test_name_input_with_weird_characters_will_throw_422_error(): void
+    public function test_name_input_with_invalid_characters_will_throw_422_error(): void
     {
-        $this->postJson(route('api.v1.auth.signup'), [
-                'name' => 'ab 12!@_$',
-                'email' => fake()->email(),
-                'password' => 'password',
-                'password_confirmation' => 'password'
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('name');
+        $names = [
+            'ab 12!@_$',
+            'Dr. John Doe',
+            'She is my ___',
+            'We... ',
+            'Weird Pte. Ltd.'
+        ];
+
+        foreach ($names as $name) {
+            $this->postJson(route('api.v1.auth.signup'), [
+                    'username' => $this->username,
+                    'name' => $name,
+                    'email' => $this->email,
+                    'password' => $this->password,
+                    'password_confirmation' => $this->password
+                ])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrorFor('name');
+        }
     }
 }
