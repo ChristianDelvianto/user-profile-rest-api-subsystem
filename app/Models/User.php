@@ -6,6 +6,7 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -13,6 +14,27 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'users';
+
+    /**
+     * The primary key associated with the table.
+     *
+     * @var string
+     */
+    protected $primaryKey = 'id';
+
+    /**
+     * Indicates if the model's ID is auto-incrementing.
+     *
+     * @var bool
+     */
+    public $incrementing = true;
 
     /**
      * The attributes that are mass assignable.
@@ -50,13 +72,41 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * Get the users that follow user.
+     */
     public function followers(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'user_follow', 'user_id', 'follower_id', 'id', 'id');
+        return $this->belongsToMany(
+            related: User::class,
+            table: 'user_follow',
+            foreignPivotKey: 'user_id',
+            relatedPivotKey: 'follower_id',
+            parentKey: 'id',
+            relatedKey: 'id',
+        );
     }
 
+    /**
+     * Get the users that user follow.
+     */
     public function following(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'user_follow', 'follower_id', 'user_id', 'id', 'id');
+        return $this->belongsToMany(
+            related: User::class,
+            table: 'user_follow',
+            foreignPivotKey: 'follower_id',
+            relatedPivotKey: 'user_id',
+            parentKey: 'id',
+            relatedKey: 'id',
+        );
+    }
+
+    /**
+     * Get user stats.
+     */
+    public function stats(): HasOne
+    {
+        return $this->hasOne(related: UserStat::class, foreignKey: 'user_id', localKey: 'id');
     }
 }
