@@ -1,12 +1,19 @@
 <?php
 
+use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
+
+// For v1: we are using cookie-based authentication (Laravel Sanctum)
 
 Route::prefix('v1')
 ->as('v1.')
-// We are using Laravel Sanctum with Cookie-based authentication,
-// so we need to use the "web" middleware group to handle the session and CSRF protection.
-->middleware(['web'])
+->middleware([
+    EncryptCookies::class,
+    StartSession::class,
+    EnsureFrontendRequestsAreStateful::class
+])
 ->group(function () {
     require __DIR__ . '/auth.php';
     require __DIR__ . '/user.php';
