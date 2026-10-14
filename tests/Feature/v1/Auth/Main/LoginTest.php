@@ -66,6 +66,20 @@ class LoginTest extends TestCase
             ->assertAuthenticatedAs($user);
     }
 
+    public function test_login_as_authenticated_user_will_throw_403_error(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($this->user, 'web')
+            ->postJson(route('api.v1.auth.login'), [
+                'email' => $user->email,
+                'password' => 'password'
+            ])
+            ->assertForbidden();
+
+        $this->assertAuthenticatedAs($this->user, 'web');
+    }
+
     public function test_login_route_exists(): void
     {
         $this->postJson(route('api.v1.auth.login'))

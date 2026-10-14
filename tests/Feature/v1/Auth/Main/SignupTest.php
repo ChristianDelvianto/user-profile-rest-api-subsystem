@@ -18,6 +18,23 @@ class SignupTest extends TestCase
     protected string $password = 'password';
     protected string $username = 'test_user';
 
+    public function test_signup_as_authenticated_user_will_throw_403_error(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user, 'web')
+            ->postJson(route('api.v1.auth.login'), [
+                'username' => $this->username,
+                'name' => $this->name,
+                'email' => $this->email,
+                'password' => $this->password,
+                'password_confirmation' => $this->password
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing(User::class, ['email' => $this->email]);
+    }
+
     public function test_can_signup_successfully(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
