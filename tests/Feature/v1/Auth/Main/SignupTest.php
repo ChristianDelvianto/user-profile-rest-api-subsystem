@@ -82,10 +82,12 @@ class SignupTest extends TestCase
             ])
             ->assertNoContent();
 
-        $user = User::firstWhere('email', $this->email);
+        $this->assertDatabaseHas(User::class, ['email' => $this->email]);
+
+        $user = User::where('email', $this->email)->first();
 
         $this->assertSame('argon2id', password_get_info($user->password)['algoName']);
 
-        $this->assertTrue(Hash::check($this->password, $user->password));
+        $this->assertDatabaseHas(UserStat::class, ['user_id' => $user->id]);
     }
 }

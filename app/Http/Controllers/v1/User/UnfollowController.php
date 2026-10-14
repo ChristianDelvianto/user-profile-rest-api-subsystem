@@ -22,7 +22,7 @@ class UnfollowController extends Controller
         if ($isFollowing) {
             try {
                 DB::transaction(function () use ($request, $user) {
-                    $user->followers()->detach($request->user()->id, false);
+                    $user->followers()->detach($request->user()->id);
                 });
             } catch (Exception $e) {
                 report($e);
