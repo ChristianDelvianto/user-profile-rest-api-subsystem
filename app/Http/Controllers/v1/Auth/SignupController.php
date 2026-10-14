@@ -19,7 +19,9 @@ class SignupController extends Controller
     {
         try {
             DB::transaction(function () use ($request) {
-                User::create($request->validated());
+                $user = User::create($request->validated());
+
+                $user->stats()->create();
             });
 
             return response()->json(null, 204);

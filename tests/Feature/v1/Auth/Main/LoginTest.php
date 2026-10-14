@@ -5,6 +5,7 @@ namespace Tests\Feature\v1\Auth\Main;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
+use Illuminate\Testing\Fluent\AssertableJson;
 use Override;
 use Tests\TestCase;
 
@@ -12,6 +13,7 @@ class LoginTest extends TestCase
 {
     use RefreshDatabase, WithFaker;
 
+    protected string $password = 'password';
     protected User $user;
 
     #[Override]
@@ -26,7 +28,7 @@ class LoginTest extends TestCase
     {
         $this->postJson(route('api.v1.auth.login'), [
                 'email' => $this->user->email,
-                'password' => 'password'
+                'password' => $this->password
             ])
             ->assertOk();
 
@@ -38,7 +40,7 @@ class LoginTest extends TestCase
     {
         $this->postJson(route('api.v1.auth.login'), [
                 'email' => $this->user->email,
-                'password' => 'password'
+                'password' => $this->password
             ])
             ->assertOk();
 
@@ -49,6 +51,33 @@ class LoginTest extends TestCase
             ->assertNoContent();
 
         $this->assertGuest('web');
+
+        // Create different user
+        $user = User::factory()->create();
+
+        // Relogin with different user
+        $this->postJson(route('api.v1.auth.login'), [
+                'email' => $user->email,
+                'password' => $this->password
+            ])
+            ->assertOk();
+
+        $this->assertAuthenticated('web')
+            ->assertAuthenticatedAs($user);
+    }
+
+    public function test_login_as_authenticated_user_will_throw_403_error(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($this->user, 'web')
+            ->postJson(route('api.v1.auth.login'), [
+                'email' => $user->email,
+                'password' => 'password'
+            ])
+            ->assertForbidden();
+
+        $this->assertAuthenticatedAs($this->user, 'web');
     }
 
     public function test_login_route_exists(): void
@@ -57,16 +86,17 @@ class LoginTest extends TestCase
             ->assertUnprocessable();
     }
 
-    public function test_successful_login_response_contains_expected_fields(): void
+    public function test_login_successfully_will_return_response_contains_expected_fields(): void
     {
         $this->postJson(route('api.v1.auth.login'), [
                 'email' => $this->user->email,
-                'password' => 'password'
+                'password' => $this->password
             ])
             ->assertOk()
-            ->assertJsonStructure([
-                'is_verified',
-                'profile'
-            ]);
+            ->assertJson(function (AssertableJson $json) {
+                $json->has('is_verified')
+                    ->has('profile')
+                    ->etc();
+            });
     }
 }
