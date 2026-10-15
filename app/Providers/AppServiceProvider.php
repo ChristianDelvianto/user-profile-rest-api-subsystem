@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +22,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        RateLimiter::for(config('custom.throttle.api.global.throttle_name'), function (Request $request) {
+            $decayHours = config('custom.throttle.api.global.decay_hours');
+            $maxAttempts = config('custom.throttle.api.global.max_attempts');
+
+            $identifier = $request->user()?->id ?? $request->ip();
+
+            // Per-endpoint limit, so heavy usage of one resource doesn't block other API resources.
+            $key = $identifier . '|' . $request->url();
+
+            return Limit::perHour($maxAttempts, $decayHours)->by($key);
+        });
     }
 }
