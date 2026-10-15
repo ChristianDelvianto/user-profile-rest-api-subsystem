@@ -14,7 +14,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->redirectGuestsTo(function (Request $request): JsonResponse {
+        $middleware->throttleWithRedis()
+            ->redirectGuestsTo(function (Request $request): JsonResponse {
                 return response()->json([
                     'message' => 'Unauthenticated.'
                 ], 401);
