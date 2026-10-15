@@ -1,0 +1,66 @@
+name: v1 Feature Tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: laravel_test
+          POSTGRES_USER: laravel_user
+          POSTGRES_PASSWORD: laravel_password
+        ports:
+          - 5432:5432
+        # Ensure postgres is healthy before running steps
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, pdo_pgsql
+          coverage: xdebug
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Prepare environment
+        run: cp .env.example .env
+
+      - name: Generate key
+        run: php artisan key:generate
+
+      - name: Run v1 feature tests
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: laravel_test
+          DB_USERNAME: laravel_user
+          DB_PASSWORD: laravel_password
+        run: php artisan test tests/Feature/v1
