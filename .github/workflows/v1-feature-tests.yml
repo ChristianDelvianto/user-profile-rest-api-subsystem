@@ -55,7 +55,7 @@ jobs:
       - name: Generate key
         run: php artisan key:generate
 
-      - name: Run v1 auth feature tests
+      - name: Run v1 feature tests
         env:
           DB_CONNECTION: pgsql
           DB_HOST: 127.0.0.1
