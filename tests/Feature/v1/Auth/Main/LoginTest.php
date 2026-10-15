@@ -3,6 +3,7 @@
 namespace Tests\Feature\v1\Auth\Main;
 
 use App\Models\User;
+use App\Models\UserStat;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Testing\Fluent\AssertableJson;
@@ -21,7 +22,9 @@ class LoginTest extends TestCase
     {
         parent::setUp();
 
-        $this->user = User::factory()->create();
+        $this->user = User::factory()
+                    ->has(UserStat::factory(), 'stats')
+                    ->create();
     }
 
     public function test_can_login_successfully(): void
@@ -53,7 +56,9 @@ class LoginTest extends TestCase
         $this->assertGuest('web');
 
         // Create different user
-        $user = User::factory()->create();
+        $user = User::factory()
+                ->has(UserStat::factory(), 'stats')
+                ->create();
 
         // Relogin with different user
         $this->postJson(route('api.v1.auth.login'), [
@@ -68,7 +73,9 @@ class LoginTest extends TestCase
 
     public function test_login_as_authenticated_user_will_throw_403_error(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()
+                ->has(UserStat::factory(), 'stats')
+                ->create();
 
         $this->actingAs($this->user, 'web')
             ->postJson(route('api.v1.auth.login'), [
