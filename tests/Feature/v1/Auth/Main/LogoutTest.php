@@ -5,11 +5,21 @@ namespace Tests\Feature\v1\Auth\Main;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
+use Illuminate\Routing\Middleware\ThrottleRequestsWithRedis;
+use Override;
 use Tests\TestCase;
 
 class LogoutTest extends TestCase
 {
     use RefreshDatabase, WithFaker;
+
+    #[Override]
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
+    }
 
     public function test_can_logout_successfully(): void
     {

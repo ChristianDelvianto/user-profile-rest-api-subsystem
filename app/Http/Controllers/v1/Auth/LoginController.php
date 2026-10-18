@@ -4,7 +4,7 @@ namespace App\Http\Controllers\v1\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\v1\Auth\LoginRequest;
-use App\Http\Resources\v1\Auth\ProfileResource;
+use App\Http\Resources\v1\UserResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +17,7 @@ class LoginController extends Controller
      */
     public function __invoke(LoginRequest $request): JsonResponse
     {
-        if (!Auth::guard('web')->attempt($request->validated(), false)) {
+        if (! Auth::guard('web')->attempt($request->validated())) {
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.']
             ]);
@@ -29,7 +29,7 @@ class LoginController extends Controller
 
         return response()->json([
             'is_verified' => isset($user->email_verified_at),
-            'profile' => ProfileResource::make($user)
+            'profile' => UserResource::make($user)
         ]);
     }
 }
