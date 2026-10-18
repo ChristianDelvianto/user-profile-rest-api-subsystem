@@ -6,7 +6,8 @@ use App\Models\User;
 use App\Models\UserStat;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Routing\Middleware\ThrottleRequestsWithRedis;
+use Override;
 use Tests\TestCase;
 
 class SignupTest extends TestCase
@@ -17,6 +18,14 @@ class SignupTest extends TestCase
     protected string $name = 'Test User';
     protected string $password = 'password';
     protected string $username = 'test_user';
+
+    #[Override]
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
+    }
 
     public function test_signup_as_authenticated_user_will_throw_403_error(): void
     {

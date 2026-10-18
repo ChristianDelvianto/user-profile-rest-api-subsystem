@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Routing\Middleware\ThrottleRequestsWithRedis;
 use Override;
 use Tests\TestCase;
 
@@ -23,6 +24,8 @@ class UsernameTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
 
         $this->userUsernameMaxLength = config('custom.user.username.max_length');
         $this->userUsernameMinLength = config('custom.user.username.min_length');

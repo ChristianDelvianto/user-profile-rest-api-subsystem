@@ -6,6 +6,8 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Routing\Middleware\ThrottleRequestsWithRedis;
+use Override;
 use Tests\TestCase;
 
 class PasswordTest extends TestCase
@@ -13,6 +15,14 @@ class PasswordTest extends TestCase
     use RefreshDatabase, WithFaker;
 
     protected string $password = 'password';
+
+    #[Override]
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
+    }
 
     public function test_password_input_with_array_value_will_throw_422_error(): void
     {

@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Http\Resources\v1\User;
+namespace App\Http\Resources\v1;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class ProfileResource extends JsonResource
+class UserResource extends JsonResource
 {
     /**
      * Transform the resource into an array.
@@ -17,8 +17,7 @@ class ProfileResource extends JsonResource
         return [
             'id' => $this->id,
             'username' => $this->username,
-            'name' => $this->name,
-            'about' => $this->about
+            'name' => $this->name
         ];
     }
 }
