@@ -127,6 +127,7 @@ class LoginTest extends TestCase
                 }
             }
 
+            // Verify throttle is working
             $this->assertTrue($loginLimiter->isBlocked($requestIp, $this->user->email));
         } finally {
             // Clear the throttle so other test that using same ip and same email could work
@@ -170,32 +171,27 @@ class LoginTest extends TestCase
 
         $formData = ['email' => $this->user->email, 'password' => 'invalid_password'];
 
-        try {
-            // Attempts to login 10 times
-            for ($index = 0; $index < 10; $index++) {
-                if ($index < $maxAttempts) {
-                    $this->withServerVariables([
-                            'REMOTE_ADDR' => $requestIp1
-                        ])
-                        ->postJson(route('api.v1.auth.login'), $formData)
-                        ->assertUnprocessable();
-                } else {
-                    $this->withServerVariables([
-                            'REMOTE_ADDR' => $requestIp1
-                        ])
-                        ->postJson(route('api.v1.auth.login'), $formData)
-                        ->assertTooManyRequests();
-                }
+        // Attempts to login 10 times
+        for ($index = 0; $index < 10; $index++) {
+            if ($index < $maxAttempts) {
+                $this->withServerVariables([
+                        'REMOTE_ADDR' => $requestIp1
+                    ])
+                    ->postJson(route('api.v1.auth.login'), $formData)
+                    ->assertUnprocessable();
+            } else {
+                $this->withServerVariables([
+                        'REMOTE_ADDR' => $requestIp1
+                    ])
+                    ->postJson(route('api.v1.auth.login'), $formData)
+                    ->assertTooManyRequests();
             }
-
-            $this->assertTrue($loginLimiter->isBlocked($requestIp1, $this->user->email));
-        } finally {
-            $loginLimiter->clear($requestIp1, $this->user->email);
         }
 
-        // Verify the throttle has been removed
-        $this->assertFalse($loginLimiter->isBlocked($requestIp1, $this->user->email));
+        // Verify throttle is working
+        $this->assertTrue($loginLimiter->isBlocked($requestIp1, $this->user->email));
 
+        // Login with different IP
         $this->withServerVariables([
                 'REMOTE_ADDR' => $requestIp2
             ])
@@ -206,5 +202,11 @@ class LoginTest extends TestCase
             ->assertOk();
 
         $this->assertAuthenticatedAs($this->user);
+
+        // Clear the throttle, so other tests will not throw 429 error
+        $loginLimiter->clear($requestIp1, $this->user->email);
+
+        // Verify the throttle has been removed
+        $this->assertFalse($loginLimiter->isBlocked($requestIp1, $this->user->email));
     }
 }
