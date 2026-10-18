@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\v1\User;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\v1\User\ProfileResource;
+use App\Http\Resources\v1\UserResource;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,7 +23,7 @@ class ProfileController extends Controller
 
         return response()->json([
             'is_followed' => $this->isFollowed,
-            'profile' => ProfileResource::make($user)
+            'profile' => UserResource::make($user)
         ]);
     }
 }
