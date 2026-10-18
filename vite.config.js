@@ -1,9 +1,6 @@
-import { defineConfig } from 'vite'
-import laravel from 'laravel-vite-plugin'
-import path from 'path'
-import tailwindcss from '@tailwindcss/vite'
-import vue from '@vitejs/plugin-vue'
-import vueDevTools from 'vite-plugin-vue-devtools'
+import { defineConfig } from 'vite';
+import laravel from 'laravel-vite-plugin';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
     plugins: [
@@ -11,21 +8,11 @@ export default defineConfig({
             input: ['resources/css/app.css', 'resources/js/app.js'],
             refresh: true,
         }),
-        tailwindcss({
-            optimize: true
-        }),
-        vue(),
-        vueDevTools()
+        tailwindcss(),
     ],
-    resolve: {
-        alias: {
-            '@': path.resolve(__dirname, './vue')
-        },
-        extensions: ['.js', '.json', '.ts', '.vue']
-    },
     server: {
         watch: {
-            ignored: ['**/storage/framework/views/**']
+            ignored: ['**/storage/framework/views/**'],
         },
     },
 });
