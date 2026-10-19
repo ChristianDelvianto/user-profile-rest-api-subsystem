@@ -33,6 +33,8 @@ class UnfollowController extends Controller
                     $notification = Notification::query()
                                     ->select('notifications.*')
                                     ->join('notification_user', 'notifications.id', '=', 'notification_user.notification_id')
+                                    // This query already use composite index we design
+                                    // See: database/migrations/2026_10_18_153517_create_notifications_table.php:24
                                     ->where('notifications.user_id', $user->id)
                                     ->where('notifications.type', NotificationType::AccountFollower)
                                     ->where('notification_user.user_id', $request->user()->id)
