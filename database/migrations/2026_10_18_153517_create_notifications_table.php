@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -24,6 +25,13 @@ return new class extends Migration
             $table->index(['user_id', 'type', 'created_at']);
             $table->index(['user_id', 'created_at', 'id']); // Cursor pagination
         });
+
+        // Add the non-negative constraint
+        DB::statement(
+            'ALTER TABLE notifications
+            ADD CONSTRAINT notifications_groups_count_non_negative
+            CHECK (groups_count >= 0)'
+        );
     }
 
     /**
