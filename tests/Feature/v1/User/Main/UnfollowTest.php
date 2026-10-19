@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\v1\User\Main;
 
+use App\Enums\NotificationType;
+use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
@@ -26,15 +28,25 @@ class UnfollowTest extends TestCase
     {
         $follower = User::factory()->create();
 
-        $this->user->followers()->attach($follower->id);
+        $this->actingAs($follower, 'web')
+            ->postJson(route('api.v1.user.follow', ['user' => $this->user->id]))
+            ->assertNoContent();
+
+        // User decided to unfollow, in real-life scenario user could be misclicked; 'back to zero'
+        $this->travel(2)->seconds();
 
         $this->actingAs($follower, 'web')
             ->deleteJson(route('api.v1.user.unfollow', ['user' => $this->user->id]))
             ->assertNoContent();
 
         $this->assertDatabaseCount('user_follow', 0)
+            ->assertDatabaseCount('notification_user', 0)
             ->assertDatabaseMissing('user_follow', [
                 'follower_id' => $follower->id,
+                'user_id' => $this->user->id
+            ])
+            ->assertDatabaseHas(Notification::class, [
+                'groups_count' => 0,
                 'user_id' => $this->user->id
             ]);
     }
