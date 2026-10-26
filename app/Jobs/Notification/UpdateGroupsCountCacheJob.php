@@ -2,7 +2,6 @@
 
 namespace App\Jobs\Notification;
 
-use App\Caches\NotificationCache;
 use App\Models\Notification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -42,9 +41,9 @@ class UpdateGroupsCountCacheJob implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(NotificationCache $notificationCache): void
+    public function handle(): void
     {
-        $cacheKey = $notificationCache->getKey('groups_count', $this->uuid);
+        $cacheKey = str_replace('*', $this->uuid, config('custom.cache.notification.pattern.groups_count'));
 
         $cachedCount = Cache::get($cacheKey, null);
 
