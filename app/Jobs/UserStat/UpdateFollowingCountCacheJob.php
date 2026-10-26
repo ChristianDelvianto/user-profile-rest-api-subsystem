@@ -61,6 +61,6 @@ class UpdateFollowingCountCacheJob implements ShouldQueue
             $this->newCount = 0;
         }
 
-        Cache::put($cacheKey, $this->count, config('custom.cache.user_stat.ttl_duration'));
+        Cache::put($cacheKey, $this->newCount, config('custom.cache.user_stat.ttl_duration'));
     }
 }
