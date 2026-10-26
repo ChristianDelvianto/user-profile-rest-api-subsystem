@@ -2,7 +2,6 @@
 
 namespace App\Jobs\UserStat;
 
-use App\Caches\UserStatCache;
 use App\Models\UserStat;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -42,10 +41,10 @@ class UpdateNotificationsCountCacheJob implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(UserStatCache $userStatCache): void
+    public function handle(): void
     {
-        $cacheKey = $userStatCache->getKey('notifications_count', $this->userId);
-        
+        $cacheKey = str_replace('*', $this->userId, config('custom.cache.user_stat.pattern.notifications_count'));
+
         $cachedCount = Cache::get($cacheKey, null);
 
         if (is_null($cachedCount)) { // No cached value, get from database
@@ -62,6 +61,6 @@ class UpdateNotificationsCountCacheJob implements ShouldQueue
             $this->newCount = 0;
         }
 
-        Cache::put($cacheKey, $this->count, config('custom.cache.user_stat.ttl_duration'));
+        Cache::put($cacheKey, $this->newCount, config('custom.cache.user_stat.ttl_duration'));
     }
 }
