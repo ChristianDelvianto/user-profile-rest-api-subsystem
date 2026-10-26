@@ -69,7 +69,7 @@ class CreateAccountFollowerTypeOrAttachNewUserJob implements ShouldQueue
                                 $notification->users()->attach($this->follower->id);
 
                                 return $notification;
-                            }, attempts: config('database.transaction.attempts'));
+                            }, attempts: config('custom.database.transaction.attempts'));
 
             Cache::put($cacheKey, $notification, config('custom.cache.notification.ttl_duration'));
         }
