@@ -84,6 +84,9 @@ jobs:
 
           php artisan optimize
 
+      - name: Run database migrations
+        run: php artisan migrate --force
+
       - name: Start concurrent HTTP server and run tests
         shell: bash
         run: |
@@ -97,20 +100,20 @@ jobs:
           ready=0
 
           for attempt in $(seq 1 30); do
-            if curl --silent --show-error --fail \
-              http://127.0.0.1:8000/sanctum/csrf-cookie \
-              -o /dev/null; then
-              ready=1
-              break
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+              echo "PHP HTTP server exited unexpectedly."
+              cat /tmp/test-server.log
+              exit 1
             fi
 
             sleep 1
           done
 
-          if [ "$ready" -ne 1 ]; then
-            echo "Laravel HTTP server failed to become ready."
-            cat /tmp/follow-test-server.log
-            exit 1
+          if curl --silent --fail \
+            http://127.0.0.1:8000/sanctum/csrf-cookie \
+            -o /dev/null; then
+            ready=1
+            break
           fi
 
           php artisan test tests/Feature/v1/ComplexTest/User
