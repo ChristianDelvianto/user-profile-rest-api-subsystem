@@ -2,9 +2,7 @@ name: v1 Http User Tests
 
 on:
   pull_request:
-    branches: [main]
   push:
-    branches: [v1/auth, v1/user]
 
 jobs:
   tests:
@@ -49,7 +47,7 @@ jobs:
 
       CACHE_STORE: redis
       QUEUE_CONNECTION: redis
-      SESSION_DRIVER: redis
+      SESSION_DRIVER: redis # In production we use 'cookie'
 
       REDIS_CLIENT: predis
       REDIS_HOST: 127.0.0.1
@@ -113,7 +111,6 @@ jobs:
             http://127.0.0.1:8000/sanctum/csrf-cookie \
             -o /dev/null; then
             ready=1
-            break
           fi
 
           php artisan test tests/Feature/v1/ComplexTest/User

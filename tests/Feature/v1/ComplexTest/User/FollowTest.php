@@ -57,7 +57,7 @@ class FollowTest extends TestCase
      */
     public function test_follow_from_10000_concurrent_users(): void
     {
-        $usersCount = 4000; // Adjust this if we want to test more / less concurency
+        $usersCount = 10000; // Adjust this if we want to test more / less concurency
         $usersSessions = []; // Store sessions of authenticated users
 
         $user = User::factory()
