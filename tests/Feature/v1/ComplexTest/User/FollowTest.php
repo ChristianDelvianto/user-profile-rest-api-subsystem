@@ -53,23 +53,26 @@ class FollowTest extends TestCase
     /**
      * Real-life scenario: multiple users concurrently follow the same user.
      * 
-     * This test will fire 8000 concurent http requests to a endpoint.
+     * This test will send 10000 concurent http requests to a endpoint.
      */
-    public function test_follow_from_8000_concurrent_users(): void
+    public function test_follow_from_10000_concurrent_users(): void
     {
-        $usersCount = 8000; // Adjust this if we want to test more / less concurency
+        $usersCount = 10000; // Adjust this if we want to test more / less concurency
         $usersSessions = []; // Store sessions of authenticated users
 
         $user = User::factory()
                 ->has(UserStat::factory(), 'stats')
                 ->create();
 
-        $followers = User::factory()
-                    ->has(UserStat::factory(), 'stats')
-                    ->count($usersCount)
-                    ->create();
+        $followers = collect([]);
 
-        foreach ($followers as $follower) {
+        for ($index = 0; $index < $usersCount; $index++ ) {
+            $follower = User::factory()
+                        ->has(UserStat::factory(), 'stats')
+                        ->create(['username' => 'test_ ' . ($index + 1)]); // To prevent unique constraint exception
+
+            $followers->push($follower);
+
             $cookieJar = new CookieJar();
 
             // Initialize Sanctum CSRF protection
