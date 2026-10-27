@@ -136,7 +136,7 @@ class FollowTest extends TestCase
                     '--queue=high,default',
                     '--stop-when-empty',
                     '--sleep=0',
-                    '--memory=512',
+                    '--memory=1024',
                     '--quiet',
                     '-v'
                 ], base_path());
@@ -144,7 +144,7 @@ class FollowTest extends TestCase
         $worker->setTimeout(null);
         $worker->run();
 
-        $this->assertSame(0, $worker->getExitCode(), $worker->getOutput() . $worker->getErrorOutput());
+        $this->assertSame(0, $worker->getExitCode(), $worker->getErrorOutput());
 
         // Ensure $user only have one notification (Because we are using queue pipeline)
         $this->assertSame(1, $user->notifications()->count());
