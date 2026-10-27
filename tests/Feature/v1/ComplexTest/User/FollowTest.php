@@ -126,7 +126,8 @@ class FollowTest extends TestCase
                 'connection' => 'redis',
                 '--queue' => 'high,default',
                 '--stop-when-empty' => true,
-                '--sleep' => 0
+                '--sleep' => 0,
+                '--memory' => 512
             ])
             ->assertExitCode(0);
 

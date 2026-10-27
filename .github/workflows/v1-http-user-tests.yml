@@ -87,7 +87,7 @@ jobs:
       - name: Run database migrations
         run: php artisan migrate --force
 
-      - name: Start concurrent HTTP server and run tests
+      - name: Start HTTP server and run complex user tests
         shell: bash
         run: |
           PHP_CLI_SERVER_WORKERS=8 \
