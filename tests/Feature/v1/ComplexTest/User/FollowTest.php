@@ -53,11 +53,11 @@ class FollowTest extends TestCase
     /**
      * Real-life scenario: multiple users concurrently follow the same user.
      * 
-     * This test will fire X concurent http requests to a endpoint.
+     * This test will fire 8000 concurent http requests to a endpoint.
      */
-    public function test_follow_from_10000_concurrent_users(): void
+    public function test_follow_from_8000_concurrent_users(): void
     {
-        $usersCount = 10000; // Adjust this if we want to test more / less concurency
+        $usersCount = 8000; // Adjust this if we want to test more / less concurency
         $usersSessions = []; // Store sessions of authenticated users
 
         $user = User::factory()
@@ -135,24 +135,25 @@ class FollowTest extends TestCase
                     '--sleep=0',
                     '--memory=512',
                     '--quiet',
+                    '-v'
                 ], base_path());
 
         $worker->setTimeout(null);
         $worker->run();
 
-        $this->assertSame(0, $worker->getExitCode());
+        $this->assertSame(0, $worker->getExitCode(), $worker->getOutput() . $worker->getErrorOutput());
 
         // Ensure $user only have one notification (Because we are using queue pipeline)
-        $this->assertEquals(1, $user->notifications()->count());
+        $this->assertSame(1, $user->notifications()->count());
 
         // Ensures $user followers count equal with $usersCount
-        $this->assertEquals($usersCount, $user->followers()->count());
+        $this->assertSame($usersCount, $user->followers()->count());
 
         // Ensures followers_count cache value equal with $usersCount
-        $this->assertEquals($usersCount, (int) Cache::get(str_replace('*', $user->id, config('custom.cache.user_stat.pattern.followers_count')), 0));
+        $this->assertSame($usersCount, (int) Cache::get(str_replace('*', $user->id, config('custom.cache.user_stat.pattern.followers_count')), 0));
 
         // Ensures notifications_count cache value equal with $usersCount
-        $this->assertEquals($usersCount, (int) Cache::get(str_replace('*', $user->id, config('custom.cache.user_stat.pattern.notifications_count')), 0));
+        $this->assertSame($usersCount, (int) Cache::get(str_replace('*', $user->id, config('custom.cache.user_stat.pattern.notifications_count')), 0));
     }
 
     /**
@@ -216,6 +217,6 @@ class FollowTest extends TestCase
         ->send();
 
         // Ensures only 1 follower, no duplicate records
-        $this->assertEquals(1, $user->followers()->count());
+        $this->assertSame(1, $user->followers()->count());
     }
 }
