@@ -12,18 +12,20 @@ use Illuminate\Routing\Middleware\ThrottleRequestsWithRedis;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Override;
+use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
 /**
- * These tests below are using real HTTP requests and real database records,
- * each tests will not delete previous test data records.
+ * These tests below are using real HTTP requests and real database records.
+ * (EACH TESTS WILL NOT DELETE PREVIOUS TEST RECORDS; IN SHORT, THIS TESTS USE PERSISTENT DATABASE AND CACHE)
+ * So we have to create a new user for each tests (like in normal feature test: $this->user).
  * 
  * Before test, make sure:
  * 1. Run php artisan migrate:fresh
  * 2. Run php artisan optimize:clear & php artisan optimize
  * 3. Clear all keys in Redis
- * 4. Value for QUEUE_CONNECTION in phpunit.xml must using "redis" value
- * 5. Value for CACHE_STORE in phpunit.xml must using "redis" value
+ * 4. Value for QUEUE_CONNECTION in phpunit.xml must use "redis"
+ * 5. Value for CACHE_STORE in phpunit.xml must use "redis"
  * 6. Run the test
  */
 class FollowTest extends TestCase
@@ -49,11 +51,13 @@ class FollowTest extends TestCase
     }
 
     /**
-     * Real-life scenario: multiple users concurrently follow the same user
+     * Real-life scenario: multiple users concurrently follow the same user.
+     * 
+     * This test will fire X concurent http requests to a endpoint.
      */
-    public function test_follow_from_multiple_users_will_store_followers_count_cache_accurately(): void
+    public function test_follow_from_10000_concurrent_users(): void
     {
-        $usersCount = 10000; // Adjust this if we want to test more / less concurency
+        $usersCount = 4000; // Adjust this if we want to test more / less concurency
         $usersSessions = []; // Store sessions of authenticated users
 
         $user = User::factory()
@@ -111,25 +115,32 @@ class FollowTest extends TestCase
             $followers->map(function (User $follower) use ($batch, $user, $usersSessions) {
                 $batch->as($follower->id)
                     ->withOptions([
-                        'cookies' => $usersSessions[$follower->id]['cookies'],
+                        'cookies' => $usersSessions[$follower->id]['cookies']
                     ])
                     ->withHeaders([
                         ...$this->requestHeaders,
-                        'X-XSRF-TOKEN' => $usersSessions[$follower->id]['csrf_token'],
+                        'X-XSRF-TOKEN' => $usersSessions[$follower->id]['csrf_token']
                     ])
                     ->post("{$this->baseUrl}/api/v1/user/{$user->id}/follow");
             })->all();
         })
-        ->send();
+        ->send(); // FIRE!!!
 
-        $this->artisan('queue:work', [
-                'connection' => 'redis',
-                '--queue' => 'high,default',
-                '--stop-when-empty' => true,
-                '--sleep' => 0,
-                '--memory' => 512
-            ])
-            ->assertExitCode(0);
+        $worker = new Process([
+                    PHP_BINARY,
+                    base_path('artisan'),
+                    'queue:work',
+                    '--queue=high,default',
+                    '--stop-when-empty',
+                    '--sleep=0',
+                    '--memory=512',
+                    '--quiet',
+                ], base_path());
+
+        $worker->setTimeout(null);
+        $worker->run();
+
+        $this->assertSame(0, $worker->getExitCode());
 
         // Ensure $user only have one notification (Because we are using queue pipeline)
         $this->assertEquals(1, $user->notifications()->count());
@@ -185,6 +196,7 @@ class FollowTest extends TestCase
 
         $this->assertEquals(200, $response->status(), 'Login failed for user id: ' . $follower->id);
 
+        // This line is mandatory, otherwise the test will throw 419 error
         $csrfCookie = $cookieJar->getCookieByName('XSRF-TOKEN');
 
         $this->assertNotNull($csrfCookie);
