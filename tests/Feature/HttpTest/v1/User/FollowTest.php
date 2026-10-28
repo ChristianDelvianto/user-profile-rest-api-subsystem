@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature\v1\ComplexTest\User;
+namespace Tests\Feature\HttpTest\v1\User;
 
 use App\Models\User;
 use App\Models\UserStat;
@@ -213,15 +213,16 @@ class FollowTest extends TestCase
         $worker->setTimeout(null);
         $worker->run();
 
+        // Ensures $worker end successfully
         $this->assertSame(0, $worker->getExitCode(), $worker->getErrorOutput());
 
         // Ensures $user followers count equal with $usersCount
         $this->assertSame($usersCount, $user->followers()->count());
 
-        // Ensures followers_count cache value equal with $usersCount
+        // Ensures $user followers_count cache value equal with $usersCount
         $this->assertSame($usersCount, (int) Cache::get(str_replace('*', $user->id, config('custom.cache.user_stat.pattern.followers_count')), 0));
 
-        // Ensures notifications_count cache value equal with $usersCount
+        // Ensures $user notifications_count cache value equal with $usersCount
         $this->assertSame($usersCount, (int) Cache::get(str_replace('*', $user->id, config('custom.cache.user_stat.pattern.notifications_count')), 0));
 
         // Ensure $user only have one notification (Because we are using queue pipeline)
