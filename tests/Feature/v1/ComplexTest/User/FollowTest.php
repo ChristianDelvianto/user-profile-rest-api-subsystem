@@ -51,6 +51,70 @@ class FollowTest extends TestCase
     }
 
     /**
+     * A user tries to follow another user concurrently
+     */
+    public function test_follow_must_ensure_follower_uniqueness(): void
+    {
+        $concurrencyCount = 5;
+
+        $user = User::factory()
+                ->has(UserStat::factory(), 'stats')
+                ->create();
+
+        $follower = User::factory()
+                    ->has(UserStat::factory(), 'stats')
+                    ->create();
+
+        $cookieJar = new CookieJar();
+
+        // Initialize Sanctum CSRF protection
+        Http::withOptions(['cookies' => $cookieJar])
+            ->withHeaders($this->requestHeaders)
+            ->get("{$this->baseUrl}/sanctum/csrf-cookie")
+            ->throw();
+
+        $csrfCookie = $cookieJar->getCookieByName('XSRF-TOKEN');
+
+        $this->assertNotNull($csrfCookie);
+
+        // Log in as $follower
+        $response = Http::withOptions(['cookies' => $cookieJar])
+                    ->withHeaders([
+                        ...$this->requestHeaders,
+                        'X-XSRF-TOKEN' => urldecode($csrfCookie->getValue())
+                    ])
+                    ->post("{$this->baseUrl}/api/v1/auth/login", [
+                        'email' => $follower->email,
+                        'password' => 'password'
+                    ])
+                    ->throw();
+
+        $this->assertEquals(200, $response->status(), 'Login failed for user id: ' . $follower->id);
+
+        // This line is mandatory, otherwise the test will throw 419 error
+        $csrfCookie = $cookieJar->getCookieByName('XSRF-TOKEN');
+
+        $this->assertNotNull($csrfCookie);
+
+        // Perform real http requests
+        Http::batch(function (Batch $batch) use ($concurrencyCount, $cookieJar, $csrfCookie, $user) {
+            for ($index = 0; $index < $concurrencyCount; $index++) {
+                $batch->as(($index + 1))
+                    ->withOptions(['cookies' => $cookieJar])
+                    ->withHeaders([
+                        ...$this->requestHeaders,
+                        'X-XSRF-TOKEN' => urldecode($csrfCookie->getValue())
+                    ])
+                    ->post("{$this->baseUrl}/api/v1/user/{$user->id}/follow");
+            }
+        })
+        ->send();
+
+        // Ensures only 1 follower, no duplicate records
+        $this->assertSame(1, $user->followers()->count());
+    }
+
+    /**
      * Real-life scenario: multiple users concurrently follow the same user.
      * 
      * This test will send 10000 concurent http requests to a endpoint.
@@ -146,9 +210,6 @@ class FollowTest extends TestCase
 
         $this->assertSame(0, $worker->getExitCode(), $worker->getErrorOutput());
 
-        // Ensure $user only have one notification (Because we are using queue pipeline)
-        $this->assertSame(1, $user->notifications()->count());
-
         // Ensures $user followers count equal with $usersCount
         $this->assertSame($usersCount, $user->followers()->count());
 
@@ -157,69 +218,8 @@ class FollowTest extends TestCase
 
         // Ensures notifications_count cache value equal with $usersCount
         $this->assertSame($usersCount, (int) Cache::get(str_replace('*', $user->id, config('custom.cache.user_stat.pattern.notifications_count')), 0));
-    }
 
-    /**
-     * A user tries to follow another user concurrently
-     */
-    public function test_follow_must_ensure_follower_uniqueness(): void
-    {
-        $concurrency = 5;
-
-        $user = User::factory()
-                ->has(UserStat::factory(), 'stats')
-                ->create();
-
-        $follower = User::factory()
-                    ->has(UserStat::factory(), 'stats')
-                    ->create();
-
-        $cookieJar = new CookieJar();
-
-        // Initialize Sanctum CSRF protection
-        Http::withOptions(['cookies' => $cookieJar])
-            ->withHeaders($this->requestHeaders)
-            ->get("{$this->baseUrl}/sanctum/csrf-cookie")
-            ->throw();
-
-        $csrfCookie = $cookieJar->getCookieByName('XSRF-TOKEN');
-
-        $this->assertNotNull($csrfCookie);
-
-        // Log in as $follower
-        $response = Http::withOptions(['cookies' => $cookieJar])
-                    ->withHeaders([
-                        ...$this->requestHeaders,
-                        'X-XSRF-TOKEN' => urldecode($csrfCookie->getValue())
-                    ])
-                    ->post("{$this->baseUrl}/api/v1/auth/login", [
-                        'email' => $follower->email,
-                        'password' => 'password'
-                    ])
-                    ->throw();
-
-        $this->assertEquals(200, $response->status(), 'Login failed for user id: ' . $follower->id);
-
-        // This line is mandatory, otherwise the test will throw 419 error
-        $csrfCookie = $cookieJar->getCookieByName('XSRF-TOKEN');
-
-        $this->assertNotNull($csrfCookie);
-
-        // Perform real http requests
-        Http::batch(function (Batch $batch) use ($concurrency, $cookieJar, $csrfCookie, $user) {
-            for ($index = 0; $index < $concurrency; $index++) {
-                $batch->as(($index + 1))
-                    ->withOptions(['cookies' => $cookieJar])
-                    ->withHeaders([
-                        ...$this->requestHeaders,
-                        'X-XSRF-TOKEN' => urldecode($csrfCookie->getValue())
-                    ])
-                    ->post("{$this->baseUrl}/api/v1/user/{$user->id}/follow");
-            }
-        })
-        ->send();
-
-        // Ensures only 1 follower, no duplicate records
-        $this->assertSame(1, $user->followers()->count());
+        // Ensure $user only have one notification (Because we are using queue pipeline)
+        $this->assertSame(1, $user->notifications()->count());
     }
 }
