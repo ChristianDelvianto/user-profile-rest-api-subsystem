@@ -41,17 +41,17 @@ class IndexTest extends TestCase
             $this->travel(rand(3, 5))->minutes();
 
             Notification::factory()
-            // Each notification has 3 users
-            ->has(
-                User::factory()
-                    ->has(UserStat::factory(), 'stats')
-                    ->count(3)
-            , 'users')
-            ->create([
-                'uuid' => Str::uuid()->toString(),
-                'type' => NotificationType::AccountFollower,
-                'user_id' => $this->user->id
-            ]);
+                        // Each notification has 3 users
+                        ->has(
+                            User::factory()
+                                ->has(UserStat::factory(), 'stats')
+                                ->count(3)
+                        , 'users')
+                        ->create([
+                            'uuid' => Str::uuid()->toString(),
+                            'type' => NotificationType::AccountFollower,
+                            'user_id' => $this->user->id
+                        ]);
         }
 
         $latestNotification = $this->user->notifications()->latest()->first();
@@ -92,13 +92,36 @@ class IndexTest extends TestCase
 
     public function test_notifications_will_return_response_contains_expected_fields(): void
     {
+        // Create a notification to check its json keys
+        Notification::factory()
+                    ->has(
+                        User::factory()
+                            ->has(UserStat::factory(), 'stats')
+                    , 'users')
+                    ->create([
+                        'uuid' => Str::uuid()->toString(),
+                        'type' => NotificationType::AccountFollower,
+                        'user_id' => $this->user->id
+                    ]);
+
         $this->actingAs($this->user, 'web')
             ->getJson(route('api.v1.notifications.index'))
             ->assertOk()
             ->assertJson(function (AssertableJson $json) {
-                $json->has('has_more')->where('has_more', false)
-                    ->has('cursor')->where('cursor', null)
-                    ->has('items', 0)
+                $json->has('has_more')
+                    ->has('cursor')
+                    ->has('items', 1)
+                        // See NotificationResource for more details
+                        ->has('items.0', function (AssertableJson $json) {
+                            $json->has('uuid')
+                                ->has('type')
+                                ->has('groups_count')
+                                ->has('created_at')
+                                ->has('last_activity_id')
+                                ->has('last_activity_at')
+                                ->has('users', 1)
+                                ->etc();
+                        })
                     ->etc();
             });
     }
