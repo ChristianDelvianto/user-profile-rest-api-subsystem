@@ -55,7 +55,12 @@ class ProfileTest extends TestCase
             ->assertOk()
             ->assertJson(function (AssertableJson $json) {
                 $json->has('is_followed')
-                    ->has('profile')
+                    ->has('profile', function (AssertableJson $json) {
+                        $json->has('id')
+                            ->has('username')
+                            ->has('name')
+                            ->etc();
+                    })
                     ->etc();
             });
     }
