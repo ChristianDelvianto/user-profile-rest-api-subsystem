@@ -113,4 +113,4 @@ jobs:
             ready=1
           fi
 
-          php artisan test tests/Feature/HttpTest/v1/User
+          php artisan test tests/Feature/HttpTest/v1/User/FollowTest.php
