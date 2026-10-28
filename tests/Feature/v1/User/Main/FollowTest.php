@@ -168,6 +168,32 @@ class FollowTest extends TestCase
             ]);
     }
 
+    public function test_follow_idempotency(): void
+    {
+        $follower = User::factory()
+                    ->has(UserStat::factory(), 'stats')
+                    ->create();
+
+        for ($index = 0; $index < 10; $index++) {
+            $this->actingAs($follower, 'web')
+                ->postJson(route('api.v1.user.follow', ['user' => $this->user->id]))
+                ->assertNoContent();
+        }
+
+        $this->assertDatabaseCount('user_follow', 1)
+            ->assertDatabaseHas('user_follow', [
+                'follower_id' => $follower->id,
+                'user_id' => $this->user->id
+            ]);
+    }
+
+    public function test_follow_one_self_will_throw_403_error(): void
+    {
+        $this->actingAs($this->user, 'web')
+            ->postJson(route('api.v1.user.follow', ['user' => $this->user->id]))
+            ->assertForbidden();
+    }
+
     public function test_follow_queue_does_not_run_when_lock_is_held(): void
     {
         $cacheKey = str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.followers_count'));
@@ -197,32 +223,6 @@ class FollowTest extends TestCase
             // Remove the cache
             Cache::forget($cacheKey);
         }
-    }
-
-    public function test_follow_idempotency(): void
-    {
-        $follower = User::factory()
-                    ->has(UserStat::factory(), 'stats')
-                    ->create();
-
-        for ($index = 0; $index < 10; $index++) {
-            $this->actingAs($follower, 'web')
-                ->postJson(route('api.v1.user.follow', ['user' => $this->user->id]))
-                ->assertNoContent();
-        }
-
-        $this->assertDatabaseCount('user_follow', 1)
-            ->assertDatabaseHas('user_follow', [
-                'follower_id' => $follower->id,
-                'user_id' => $this->user->id
-            ]);
-    }
-
-    public function test_follow_one_self_will_throw_403_error(): void
-    {
-        $this->actingAs($this->user, 'web')
-            ->postJson(route('api.v1.user.follow', ['user' => $this->user->id]))
-            ->assertForbidden();
     }
 
     public function test_follow_route_exists(): void
@@ -286,6 +286,50 @@ class FollowTest extends TestCase
         Queue::assertNotPushed(UpdateFollowersCountCacheJob::class);
         Queue::assertNotPushed(UpdateFollowingCountCacheJob::class);
         Queue::assertNotPushed(CreateAccountFollowerTypeOrAttachNewUserJob::class);
+    }
+
+    public function test_follow_will_reinitiate_followers_count_cache_after_some_time(): void
+    {
+        $usersCount = 3;
+
+        for ($index = $usersCount; $index > 0; $index--) {
+            $user = User::factory()
+                    ->has(UserStat::factory(), 'stats')
+                    ->create();
+
+            $this->actingAs($user, 'web')
+                ->postJson(route('api.v1.user.follow', ['user' => $this->user->id]))
+                ->assertNoContent();
+
+            $job = Queue::pushed(UpdateFollowersCountCacheJob::class)->last();
+
+            $this->assertNotNull($job);
+
+            // Process the job
+            $job->handle();
+
+            /**
+             * The last user will follow $this->user, after X seconds
+             * 
+             * (We are using cache TTL duration from custom cache config)
+             */
+
+            if ($index === $usersCount) {
+                $this->travel(config('custom.cache.user_stat.ttl_duration'))->seconds();
+
+                // Ensures cache expired
+                $this->assertFalse(Cache::has(str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.followers_count'))));
+
+                $this->actingAs($user, 'web')
+                    ->deleteJson(route('api.v1.user.unfollow', ['user' => $this->user->id]))
+                    ->assertNoContent();
+
+                Queue::pushed(UpdateFollowersCountCacheJob::class)->last()->handle();
+
+                // Ensures cache reinitiated
+                $this->assertTrue(Cache::has(str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.followers_count'))));
+            }
+        }
     }
 
     public function test_follow_will_store_related_stats_count_to_cache(): void
