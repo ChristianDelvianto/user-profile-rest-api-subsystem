@@ -27,7 +27,8 @@ Route::prefix('auth')
         Route::post('signup', SignupController::class)->name('signup');
     });
 
-    Route::post('logout', LogoutController::class)
-    ->middleware(['auth:web'])
-    ->name('logout');
+    Route::middleware(['auth:web'])
+    ->group(function () {
+        Route::post('logout', LogoutController::class)->name('logout');
+    });
 });
