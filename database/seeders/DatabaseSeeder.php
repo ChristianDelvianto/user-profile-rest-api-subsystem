@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use App\Models\UserStat;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -19,7 +18,6 @@ class DatabaseSeeder extends Seeder
         // User::factory(10)->create();
 
         User::factory()
-        ->has(UserStat::factory(), 'stats')
         ->create([
             'username' => 'test_user',
             'name' => 'Test User',
@@ -28,7 +26,6 @@ class DatabaseSeeder extends Seeder
 
         User::factory(50)
         ->hasAbout()
-        ->has(UserStat::factory(), 'stats')
         ->create();
     }
 }
