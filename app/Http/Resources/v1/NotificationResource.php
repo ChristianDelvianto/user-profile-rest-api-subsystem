@@ -19,6 +19,8 @@ class NotificationResource extends JsonResource
             'type' =>  $this->type,
             'groups_count' => $this->groups_count,
             'created_at' => $this->created_at,
+            'last_activity_id' => $this->whenHas('last_activity_id'),
+            'last_activity_at' => $this->whenHas('last_activity_at'),
             'users' => $this->whenLoaded('users', UserResource::collection($this->users))
         ];
     }
