@@ -81,9 +81,11 @@ class IndexTest extends TestCase
         $this->actingAs($this->user, 'web')
             ->getJson(route('api.v1.notifications.index'))
             ->assertOk()
-            ->assertJson(function (AssertableJson $json) use ($oldestNotification) {
-                // Ensures the oldest notification (before update), become the first one in order
+            ->assertJson(function (AssertableJson $json) use ($latestNotification, $oldestNotification) {
+                // Ensures the oldest notification (before update), become the first item in order
                 $json->where('items.0.uuid', $oldestNotification->uuid)
+                    // Ensures the latest notification (before update), become the second item in order
+                    ->where('items.1.uuid', $latestNotification->uuid)
                     ->etc();
             });
     }
