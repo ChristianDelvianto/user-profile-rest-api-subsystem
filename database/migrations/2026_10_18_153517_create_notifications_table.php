@@ -22,8 +22,7 @@ return new class extends Migration
 
             // Indexes
             $table->unique('uuid');
-            $table->index(['user_id', 'type', 'created_at']);
-            $table->index(['user_id', 'created_at', 'id']); // Cursor pagination
+            $table->index(['user_id', 'type', 'created_at']); // For creating new grouped notification
         });
 
         // Add the non-negative constraint
