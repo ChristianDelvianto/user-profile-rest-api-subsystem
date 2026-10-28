@@ -88,7 +88,7 @@ jobs:
       - name: Start HTTP server and run complex user tests
         shell: bash
         run: |
-          PHP_CLI_SERVER_WORKERS=8 \
+          PHP_CLI_SERVER_WORKERS=24 \
             php -S 127.0.0.1:8000 -t public public/index.php \
             > /tmp/test-server.log 2>&1 &
 
