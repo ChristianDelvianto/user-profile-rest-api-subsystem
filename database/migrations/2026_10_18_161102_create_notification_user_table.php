@@ -20,7 +20,7 @@ return new class extends Migration
             // Indexes
             $table->unique(['notification_id', 'user_id']);
             $table->index('user_id');
-            $table->index(['notification_id', 'created_at']);
+            $table->index(['notification_id', 'created_at', 'id']); // For cursor pagination and for notification index route
         });
     }
 
