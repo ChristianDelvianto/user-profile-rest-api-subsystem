@@ -2,13 +2,13 @@
 
 namespace Database\Factories;
 
-use App\Models\UserNotification;
+use App\Models\Notification;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<UserNotification>
+ * @extends Factory<Notification>
  */
-class UserNotificationFactory extends Factory
+class NotificationFactory extends Factory
 {
     /**
      * Define the model's default state.
