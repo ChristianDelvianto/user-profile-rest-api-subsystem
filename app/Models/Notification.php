@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Notification extends Model
 {
-    /** @use HasFactory<\Database\Factories\UserNotificationFactory> */
+    /** @use HasFactory<\Database\Factories\NotificationFactory> */
     use HasFactory;
 
     /**
@@ -75,6 +75,7 @@ class Notification extends Model
             relatedPivotKey: 'user_id',
             parentKey: 'id',
             relatedKey: 'id',
-        );
+        )
+        ->withTimestamps();
     }
 }
