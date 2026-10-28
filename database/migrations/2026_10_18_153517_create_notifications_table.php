@@ -22,6 +22,7 @@ return new class extends Migration
 
             // Indexes
             $table->unique('uuid');
+            $table->index('user_id');
             $table->index(['user_id', 'type', 'created_at']); // For creating new grouped notification
         });
 
