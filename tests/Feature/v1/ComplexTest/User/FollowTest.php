@@ -131,9 +131,14 @@ class FollowTest extends TestCase
         $followers = collect([]);
 
         for ($index = 0; $index < $usersCount; $index++ ) {
+            $username = 'test_' . ($index + 1);
+
             $follower = User::factory()
                         ->has(UserStat::factory(), 'stats')
-                        ->create(['username' => 'test_ ' . ($index + 1)]); // To prevent unique constraint exception
+                        ->create([ // To prevent unique constraint exception
+                            'username' => $username,
+                            'email' => $username . '@example.com'
+                        ]);
 
             $followers->push($follower);
 
