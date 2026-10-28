@@ -1,0 +1,34 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('notification_user', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('notification_id')->constrained('notifications', 'id')->cascadeOnDelete();
+            $table->foreignId('user_id')->constrained('users', 'id')->cascadeOnDelete();
+            $table->timestamps();
+
+            // Indexes
+            $table->unique(['notification_id', 'user_id']);
+            $table->index('user_id');
+            $table->index(['notification_id', 'created_at', 'id']); // For cursor pagination and for notification index route
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('notification_user');
+    }
+};
