@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\v1\Auth\CheckController;
 use App\Http\Controllers\v1\Auth\LoginController;
 use App\Http\Controllers\v1\Auth\LogoutController;
 use App\Http\Controllers\v1\Auth\SignupController;
@@ -29,6 +30,8 @@ Route::prefix('auth')
 
     Route::middleware(['auth:web'])
     ->group(function () {
+        Route::get('check', CheckController::class)->name('check');
+
         Route::post('logout', LogoutController::class)->name('logout');
     });
 });
