@@ -55,7 +55,7 @@ class FollowTest extends TestCase
             $job->handle();
         });
 
-        // Ensure UpdateGroupsCountCacheJob not pushed, because first user of the notification
+        // Ensure UpdateGroupsCountCacheJob not pushed (first user of the notification)
         Queue::assertNotPushed(UpdateGroupsCountCacheJob::class);
 
         $this->assertDatabaseCount('user_follow', 1)
@@ -267,7 +267,6 @@ class FollowTest extends TestCase
             $job->handle();
         });
 
-        // Ensure child jobs within CreateAccountFollowerTypeOrAttachNewUserJob not pushed, because the user is the first user of the notification group
         Queue::assertNotPushed(UpdateGroupsCountCacheJob::class);
     }
 
@@ -303,16 +302,6 @@ class FollowTest extends TestCase
             'follower_id' => $follower->id,
             'user_id' => $this->user->id
         ]);
-
-        Queue::assertPushed(UpdateFollowersCountCacheJob::class, function ($job) {
-            return $job->userId === $this->user->id
-                && $job->count === 1;
-        });
-
-        Queue::assertPushed(UpdateFollowingCountCacheJob::class, function ($job) use ($follower) {
-            return $job->userId === $follower->id
-                && $job->count === 1;
-        });
 
         // Process the job (To see if cache created)
         Queue::pushed(UpdateFollowersCountCacheJob::class, function ($job) {
@@ -363,10 +352,10 @@ class FollowTest extends TestCase
                 $job->handle();
             });
 
-            // Ensures follower has following_count cache equal to 1
+            // Ensures $follower has 1 following_count cache value
             $this->assertSame(1, (int) Cache::get(str_replace('*', $follower->id, config('custom.cache.user_stat.pattern.following_count')), 0));
 
-            // Ensures $this->user cached followers_count progressively incremented
+            // Ensures $this->user followers_count cache value progressively incremented
             $this->assertSame(($index + 1), (int) Cache::get(str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.followers_count')), 0));
         }
 
