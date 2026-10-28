@@ -1,0 +1,116 @@
+name: v1 Http User Tests
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: laravel_test
+          POSTGRES_USER: laravel_user
+          POSTGRES_PASSWORD: laravel_password
+        ports:
+          - 5432:5432
+        # Ensure postgres is healthy before running steps
+        options: >-
+          --health-cmd "pg_isready -U postgres -d laravel_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      APP_ENV: testing
+      APP_DEBUG: "true"
+      APP_URL: http://127.0.0.1:8000
+
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      POSTGRES_DB: laravel_test
+      POSTGRES_USER: laravel_user
+      POSTGRES_PASSWORD: laravel_password
+
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      SESSION_DRIVER: redis # In production we use 'cookie'
+
+      REDIS_CLIENT: predis
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+
+      SANCTUM_STATEFUL_DOMAINS: 127.0.0.1:8000,localhost:8000
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, pdo_pgsql, bcmath, curl, gd, intl, zip
+          coverage: xdebug
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Prepare environment
+        shell: bash
+        run: |
+          cp .env.example .env
+
+          APP_KEY="base64:$(php -r 'echo base64_encode(random_bytes(32));')"
+
+          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
+          echo "APP_KEY=${APP_KEY}" >> "$GITHUB_ENV"
+          export APP_KEY
+
+          php artisan optimize
+
+      - name: Run database migrations
+        run: php artisan migrate --force
+
+      - name: Start HTTP server and run complex user tests
+        shell: bash
+        run: |
+          PHP_CLI_SERVER_WORKERS=24 \
+            php -S 127.0.0.1:8000 -t public public/index.php \
+            > /tmp/test-server.log 2>&1 &
+
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+
+          ready=0
+
+          for attempt in $(seq 1 30); do
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+              echo "PHP HTTP server exited unexpectedly."
+              cat /tmp/test-server.log
+              exit 1
+            fi
+
+            sleep 1
+          done
+
+          if curl --silent --fail \
+            http://127.0.0.1:8000/sanctum/csrf-cookie \
+            -o /dev/null; then
+            ready=1
+          fi
+
+          php artisan test tests/Feature/v1/ComplexTest/User
