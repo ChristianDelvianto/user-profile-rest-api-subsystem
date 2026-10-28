@@ -20,7 +20,6 @@ return new class extends Migration
             $table->string('email');
             $table->string('password');
             $table->rememberToken();
-            $table->timestamp('username_updated_at')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->timestamps();
 
@@ -28,10 +27,6 @@ return new class extends Migration
             $table->unique('email');
         });
 
-        /**
-         * We change the index
-         * See: 2026_10_09_053113_change_user_username_to_citext.php
-         */
         DB::statement('CREATE UNIQUE INDEX users_username_lower_unique ON users (LOWER(username))');
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {

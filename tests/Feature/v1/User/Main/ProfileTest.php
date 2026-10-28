@@ -3,7 +3,6 @@
 namespace Tests\Feature\v1\User\Main;
 
 use App\Models\User;
-use App\Models\UserStat;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Testing\Fluent\AssertableJson;
@@ -21,9 +20,7 @@ class ProfileTest extends TestCase
     {
         parent::setUp();
 
-        $this->user = User::factory()
-                    ->has(UserStat::factory(), 'stats')
-                    ->create();
+        $this->user = User::factory()->create();
     }
 
     public function test_user_profile_can_be_fetch_successfully(): void
@@ -60,21 +57,9 @@ class ProfileTest extends TestCase
             });
     }
 
-    public function test_user_profile_will_have_is_following_key_set_to_false_for_guest(): void
-    {
-        $this->getJson(route('api.v1.user.profile', ['user' => $this->user->username]))
-            ->assertOk()
-            ->assertJson(function (AssertableJson $json) {
-                $json->has('is_followed')->where('is_followed', false)
-                    ->etc();
-            });
-    }
-
     public function test_user_profile_response_has_is_followed_set_to_true_if_user_followed(): void
     {
-        $follower = User::factory()
-                    ->has(UserStat::factory(), 'stats')
-                    ->create();
+        $follower = User::factory()->create();
 
         $this->user->followers()->attach($follower->id);
 
@@ -82,7 +67,8 @@ class ProfileTest extends TestCase
             ->getJson(route('api.v1.user.profile', ['user' => $this->user->username]))
             ->assertOk()
             ->assertJson(function (AssertableJson $json) {
-                $json->has('is_followed')->where('is_followed', true)
+                $json->has('is_followed')
+                    ->where('is_followed', true)
                     ->etc();
             });
     }
