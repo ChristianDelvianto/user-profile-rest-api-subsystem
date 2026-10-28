@@ -1,4 +1,4 @@
-name: v1 Http User Tests
+name: v1 Http User Follow Tests
 
 on:
   pull_request:
@@ -85,7 +85,7 @@ jobs:
       - name: Run database migrations
         run: php artisan migrate --force
 
-      - name: Start HTTP server and run complex user tests
+      - name: Start HTTP server and run user follow tests
         shell: bash
         run: |
           PHP_CLI_SERVER_WORKERS=24 \
@@ -113,4 +113,4 @@ jobs:
             ready=1
           fi
 
-          php artisan test tests/Feature/v1/ComplexTest/User
+          php artisan test tests/Feature/HttpTest/v1/User/FollowTest.php
