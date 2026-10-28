@@ -28,7 +28,9 @@ class IndexController extends Controller
                         $query->select(
                             'users.id',
                             'users.username',
-                            'users.name'
+                            'users.name',
+                            'notification_user.id AS activity_id',
+                            'notification_user.created_at AS activity_created_at'
                         )
                         ->latest('notification_user.created_at')
                         ->limit(5);
