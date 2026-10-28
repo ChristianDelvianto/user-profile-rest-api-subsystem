@@ -35,9 +35,9 @@ class IndexController extends Controller
                     }
                 ])
                 ->where('notifications.user_id', $request->user()->id)
-                ->groupBy('notifications.id', 'notification_user.notification_id')
                 ->orderBy('last_activity_at', 'DESC')
                 ->orderBy('last_activity_id', 'DESC')
+                ->groupBy('notifications.id', 'notification_user.notification_id')
                 ->cursorPaginate();
 
         // @todo: Get notifications cache and set the value to groups_count key
