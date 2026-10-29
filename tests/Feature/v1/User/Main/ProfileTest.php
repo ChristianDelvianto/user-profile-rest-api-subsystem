@@ -54,7 +54,9 @@ class ProfileTest extends TestCase
         $this->getJson(route('api.v1.user.profile', ['user' => $this->user->username]))
             ->assertOk()
             ->assertJson(function (AssertableJson $json) {
-                $json->has('is_followed')
+                $json->has('followers_count')->where('followers_count', 0)
+                    ->has('following_count')->where('following_count', 0)
+                    ->has('is_followed')->where('is_followed', false)
                     ->has('profile', function (AssertableJson $json) {
                         $json->has('id')
                             ->has('username')
@@ -103,4 +105,6 @@ class ProfileTest extends TestCase
         $this->getJson(route('api.v1.user.profile', ['user' => 'no_user']))
             ->assertNotFound();
     }
+
+    // @todo: Add more tests
 }
