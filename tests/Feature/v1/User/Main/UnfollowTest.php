@@ -35,6 +35,12 @@ class UnfollowTest extends TestCase
         Cache::flush();
         Queue::fake();
 
+        // This line is mandatory, otherwise the tests will throw 419 error
+        $this->withHeaders([
+            'Accept' => 'application/json',
+            'Origin' => config('app.url')
+        ]);
+
         $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
 
         $this->user = User::factory()
@@ -56,7 +62,7 @@ class UnfollowTest extends TestCase
 
         Queue::pushed(CreateAccountFollowerTypeOrAttachNewUserJob::class)->last()->handle();
 
-        // $follower decided to unfollow, in real-life scenario user could be misclicked; 'back to zero'
+        // $follower decided to unfollow, in real-life scenario user could be misclicked
         $this->travel(2)->seconds();
 
         $this->actingAs($follower, 'web')

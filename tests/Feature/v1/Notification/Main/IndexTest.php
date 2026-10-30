@@ -31,6 +31,12 @@ class IndexTest extends TestCase
 
         Queue::fake();
 
+        // This line is mandatory, otherwise the tests will throw 419 error
+        $this->withHeaders([
+            'Accept' => 'application/json',
+            'Origin' => config('app.url')
+        ]);
+
         $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
 
         $this->user = User::factory()

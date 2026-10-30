@@ -21,6 +21,11 @@ class CheckTest extends TestCase
     {
         parent::setUp();
 
+        $this->withHeaders([
+            'Accept' => 'application/json',
+            'Origin' => config('app.url')
+        ]);
+
         $this->user = User::factory()
                     ->has(UserStat::factory(), 'stats')
                     ->create();

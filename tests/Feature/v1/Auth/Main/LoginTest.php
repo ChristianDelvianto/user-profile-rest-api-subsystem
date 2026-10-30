@@ -24,6 +24,12 @@ class LoginTest extends TestCase
     {
         parent::setUp();
 
+        // This line is mandatory, otherwise the tests will throw 419 error
+        $this->withHeaders([
+            'Accept' => 'application/json',
+            'Origin' => config('app.url')
+        ]);
+
         $this->user = User::factory()
                     ->has(UserStat::factory(), 'stats')
                     ->create();
