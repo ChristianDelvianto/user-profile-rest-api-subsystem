@@ -18,11 +18,23 @@ class SignupController extends Controller
     public function __invoke(SignupRequest $request): JsonResponse
     {
         try {
-            DB::transaction(function () use ($request) {
-                $user = User::create($request->validated());
+            $user = DB::transaction(function () use ($request): User {
+                        $user = User::create($request->validated());
 
-                $user->stats()->create();
-            });
+                        $user->stats()->create();
+
+                        return $user;
+                    }, attempts: config('custom.database.transaction.attempts'));
+
+            /**
+             * Do other stuff after $user created
+             * 
+             * Example:
+             * 1. Send email for email verification
+             * 2. Create $user's cache
+             * 3. Create internal analytic report
+             * 4. Etc
+             */
 
             return response()->json(null, 204);
         } catch (Exception $e) {

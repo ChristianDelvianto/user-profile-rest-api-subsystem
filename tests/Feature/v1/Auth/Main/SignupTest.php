@@ -32,7 +32,7 @@ class SignupTest extends TestCase
         $user = User::factory()->create();
 
         $this->actingAs($user, 'web')
-            ->postJson(route('api.v1.auth.login'), [
+            ->postJson(route('api.v1.auth.signup'), [
                 'username' => $this->username,
                 'name' => $this->name,
                 'email' => $this->email,
