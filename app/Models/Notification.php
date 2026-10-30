@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Notification extends Model
@@ -61,6 +62,18 @@ class Notification extends Model
     protected function casts(): array
     {
         return [];
+    }
+
+    /**
+     * Get the user that own the notification.
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(
+            related: User::class,
+            foreignKey: 'user_id',
+            ownerKey: 'id',
+        );
     }
 
     /**

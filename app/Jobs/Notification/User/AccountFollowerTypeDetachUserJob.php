@@ -34,12 +34,13 @@ class AccountFollowerTypeDetachUserJob implements ShouldQueue
                         ->select('notifications.id', 'notifications.uuid')
                         ->join('notification_user', 'notifications.id', '=', 'notification_user.notification_id')
                         ->where('notifications.user_id', $this->user->id)
-                        ->where('notifications.type', NotificationType::AccountFollower)
+                        ->where('notifications.type', NotificationType::AccountFollower->value)
                         ->where('notification_user.user_id', $this->follower->id)
                         ->first();
 
+        // If notification is NULL, it's already deleted by cron / scheduler
         if ($notification && 1 === $notification->users()->detach($this->follower->id)) {
-            UpdateGroupsCountCacheJob::dispatch($notification->uuid, -1)->onConnection('redis')->onQueue('high');
+            UpdateGroupsCountCacheJob::dispatch($notification->uuid, -1)->onQueue('high');
         }
     }
 }

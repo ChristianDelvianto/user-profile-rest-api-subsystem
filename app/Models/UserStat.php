@@ -67,6 +67,10 @@ class UserStat extends Model
      */
     public function user(): BelongsTo
     {
-        return $this->belongsTo(related: User::class, foreignKey: 'user_id', ownerKey: 'id');
+        return $this->belongsTo(
+            related: User::class,
+            foreignKey: 'user_id',
+            ownerKey: 'id',
+        );
     }
 }

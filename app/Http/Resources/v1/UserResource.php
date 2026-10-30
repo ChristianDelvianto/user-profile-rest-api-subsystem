@@ -17,7 +17,9 @@ class UserResource extends JsonResource
         return [
             'id' => $this->id,
             'username' => $this->username,
-            'name' => $this->name
+            'name' => $this->name,
+            'activity_id' => $this->whenHas('activity_id'), // For notifications
+            'activity_created_at' => $this->whenHas('activity_created_at') // For notifications
         ];
     }
 }

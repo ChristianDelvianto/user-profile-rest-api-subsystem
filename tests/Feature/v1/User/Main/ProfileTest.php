@@ -54,18 +54,15 @@ class ProfileTest extends TestCase
         $this->getJson(route('api.v1.user.profile', ['user' => $this->user->username]))
             ->assertOk()
             ->assertJson(function (AssertableJson $json) {
-                $json->has('is_followed')
-                    ->has('profile')
-                    ->etc();
-            });
-    }
-
-    public function test_user_profile_will_have_is_following_key_set_to_false_for_guest(): void
-    {
-        $this->getJson(route('api.v1.user.profile', ['user' => $this->user->username]))
-            ->assertOk()
-            ->assertJson(function (AssertableJson $json) {
-                $json->has('is_followed')->where('is_followed', false)
+                $json->has('followers_count')->where('followers_count', 0)
+                    ->has('following_count')->where('following_count', 0)
+                    ->has('is_followed')->where('is_followed', false)
+                    ->has('profile', function (AssertableJson $json) {
+                        $json->has('id')
+                            ->has('username')
+                            ->has('name')
+                            ->etc();
+                    })
                     ->etc();
             });
     }
@@ -98,4 +95,16 @@ class ProfileTest extends TestCase
         $this->getJson(route('api.v1.user.profile', ['user' => 'no_user']))
             ->assertNotFound();
     }
+
+    public function test_user_profile_will_have_is_following_key_set_to_false_for_guest(): void
+    {
+        $this->getJson(route('api.v1.user.profile', ['user' => $this->user->username]))
+            ->assertOk()
+            ->assertJson(function (AssertableJson $json) {
+                $json->has('is_followed')->where('is_followed', false)
+                    ->etc();
+            });
+    }
+
+    // @todo: Add more tests
 }
