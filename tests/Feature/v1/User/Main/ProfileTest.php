@@ -67,16 +67,6 @@ class ProfileTest extends TestCase
             });
     }
 
-    public function test_user_profile_will_have_is_following_key_set_to_false_for_guest(): void
-    {
-        $this->getJson(route('api.v1.user.profile', ['user' => $this->user->username]))
-            ->assertOk()
-            ->assertJson(function (AssertableJson $json) {
-                $json->has('is_followed')->where('is_followed', false)
-                    ->etc();
-            });
-    }
-
     public function test_user_profile_response_has_is_followed_set_to_true_if_user_followed(): void
     {
         $follower = User::factory()
@@ -104,6 +94,16 @@ class ProfileTest extends TestCase
     {
         $this->getJson(route('api.v1.user.profile', ['user' => 'no_user']))
             ->assertNotFound();
+    }
+
+    public function test_user_profile_will_have_is_following_key_set_to_false_for_guest(): void
+    {
+        $this->getJson(route('api.v1.user.profile', ['user' => $this->user->username]))
+            ->assertOk()
+            ->assertJson(function (AssertableJson $json) {
+                $json->has('is_followed')->where('is_followed', false)
+                    ->etc();
+            });
     }
 
     // @todo: Add more tests
