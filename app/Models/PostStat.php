@@ -37,7 +37,12 @@ class PostStat extends Model
      *
      * @var list<string>
      */
-    protected $fillable = [];
+    protected $fillable = [
+        'comments_count',
+        'likes_count',
+        'shares_count',
+        'views_count',
+    ];
 
     /**
      * The attributes that should be hidden for serialization.

@@ -21,8 +21,8 @@ return new class extends Migration
             $table->foreignId('post_id')->constrained('posts', 'id')->cascadeOnDelete();
             $table->unsignedBigInteger('comments_count')->default(0);
             $table->unsignedBigInteger('likes_count')->default(0);
-            $table->unsignedBigInteger('views_count')->default(0);
             $table->unsignedBigInteger('shares_count')->default(0);
+            $table->unsignedBigInteger('views_count')->default(0);
             $table->timestamps();
 
             // Indexes
