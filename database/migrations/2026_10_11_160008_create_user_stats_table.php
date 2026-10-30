@@ -18,8 +18,8 @@ return new class extends Migration
             $table->unsignedBigInteger('following_count')->default(0);
             $table->unsignedBigInteger('notifications_count')->default(0);
             $table->unsignedBigInteger('posts_count')->default(0);
-            $table->unsignedBigInteger('last_read_notification_id')->nullable();
-            $table->unsignedBigInteger('last_read_notification_activity_id')->nullable();
+            $table->unsignedBigInteger('last_read_notification_id')->default(0); // Easy to compare
+            $table->unsignedBigInteger('last_read_notification_activity_id')->default(0); // Easy to compare
             $table->timestamps();
 
             // Indexes
@@ -35,6 +35,8 @@ return new class extends Migration
                 AND following_count >= 0
                 AND notifications_count >= 0
                 AND posts_count >= 0
+                AND last_read_notification_id >= 0
+                AND last_read_notification_activity_id >= 0
             )'
         );
     }
