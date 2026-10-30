@@ -204,7 +204,7 @@ class IndexTest extends TestCase
             ->assertUnauthorized();
     }
 
-    public function test_notification_requires_authentication(): void
+    public function test_notification_route_requires_authentication(): void
     {
         $this->getJson(route('api.v1.notifications.index'))
             ->assertUnauthorized();
