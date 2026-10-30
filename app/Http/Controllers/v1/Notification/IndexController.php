@@ -5,8 +5,10 @@ namespace App\Http\Controllers\v1\Notification;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\v1\NotificationResource;
 use App\Models\Notification;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class IndexController extends Controller
@@ -42,12 +44,40 @@ class IndexController extends Controller
                 ->groupBy('notifications.id', 'notification_user.notification_id')
                 ->cursorPaginate();
 
-        // @todo: Get notifications cache and set the value to groups_count key
+        if ($query->isNotEmpty()) {
+            $this->setGroupsCountValue($query->getCollection());
+        }
 
         return response()->json([
             'has_more' => $query->hasMorePages(),
             'cursor' => optional($query->nextCursor())?->encode(),
-            'items' => NotificationResource::collection($query->items())
+            'items' => NotificationResource::collection($query->getCollection())
         ]);
+    }
+
+    /**
+     * Get notifications 'groups_count' cache and set the value.
+     */
+    protected function setGroupsCountValue(Collection $notifications): void
+    {
+        $cacheKeys = [];
+
+        foreach ($notifications as $notification) {
+            $groupsCountCacheKey = str_replace('*', $notification->uuid, config('custom.cache.notification.pattern.groups_count'));
+
+            array_push($cacheKeys, $groupsCountCacheKey);
+        }
+
+        $cache = Cache::many($cacheKeys);
+
+        foreach ($notifications as $notification) {
+            $groupsCountCacheKey = str_replace('*', $notification->uuid, config('custom.cache.notification.pattern.groups_count'));
+
+            $groupsCountCache = $cache[$groupsCountCacheKey];
+
+            if (isset($groupsCountCache)) {
+                $notification->setAttribute('groups_count', (int) $groupsCountCache);
+            }
+        }
     }
 }
