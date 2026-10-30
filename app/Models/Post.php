@@ -71,6 +71,14 @@ class Post extends Model
     }
 
     /**
+     * Get the route key for the model.
+     */
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }    
+
+    /**
      * Get the users who liked the post.
      */
     public function likes(): BelongsToMany
