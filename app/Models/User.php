@@ -77,7 +77,7 @@ class User extends Authenticatable
     }
 
     /**
-     * Get the users that follow user.
+     * Get the users that follow the user.
      */
     public function followers(): BelongsToMany
     {
@@ -111,14 +111,22 @@ class User extends Authenticatable
      */
     public function notifications(): HasMany
     {
-        return $this->hasMany(Notification::class, 'user_id', 'id');
+        return $this->hasMany(
+            related: Notification::class,
+            foreignKey: 'user_id',
+            localKey: 'id',
+        );
     }
 
     /**
-     * Get user stats.
+     * Get user's stats.
      */
     public function stats(): HasOne
     {
-        return $this->hasOne(related: UserStat::class, foreignKey: 'user_id', localKey: 'id');
+        return $this->hasOne(
+            related: UserStat::class,
+            foreignKey: 'user_id',
+            localKey: 'id',
+        );
     }
 }
