@@ -69,7 +69,7 @@ class IndexTest extends TestCase
                         , 'users')
                         ->create([
                             'uuid' => Str::uuid()->toString(),
-                            'type' => NotificationType::AccountFollower,
+                            'type' => NotificationType::AccountFollower->value,
                             'user_id' => $this->user->id
                         ]);
         }
@@ -121,7 +121,7 @@ class IndexTest extends TestCase
                     , 'users')
                     ->create([
                         'uuid' => Str::uuid()->toString(),
-                        'type' => NotificationType::AccountFollower,
+                        'type' => NotificationType::AccountFollower->value,
                         'groups_count' => 1,
                         'user_id' => $this->user->id
                     ]);
