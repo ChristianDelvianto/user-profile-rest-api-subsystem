@@ -18,6 +18,8 @@ return new class extends Migration
             $table->unsignedBigInteger('following_count')->default(0);
             $table->unsignedBigInteger('notifications_count')->default(0);
             $table->unsignedBigInteger('posts_count')->default(0);
+            $table->unsignedBigInteger('last_read_notification_id')->nullable();
+            $table->unsignedBigInteger('last_read_notification_activity_id')->nullable();
             $table->timestamps();
 
             // Indexes
