@@ -3,12 +3,16 @@
 namespace Tests\Feature\v1\Notification\Main;
 
 use App\Enums\NotificationType;
+use App\Jobs\Notification\UpdateGroupsCountCacheJob;
+use App\Jobs\Notification\User\CreateAccountFollowerTypeOrAttachNewUserJob;
 use App\Models\Notification;
 use App\Models\User;
 use App\Models\UserStat;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
+use Illuminate\Routing\Middleware\ThrottleRequestsWithRedis;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Illuminate\Testing\Fluent\AssertableJson;
 use Override;
@@ -25,20 +29,36 @@ class IndexTest extends TestCase
     {
         parent::setUp();
 
+        Queue::fake();
+
+        $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
+
         $this->user = User::factory()
                     ->has(UserStat::factory(), 'stats')
                     ->create();
     }
 
+    public function test_can_fetch_notifications_successfully(): void
+    {
+        $this->actingAs($this->user, 'web')
+            ->getJson(route('api.v1.notifications.index'))
+            ->assertOk()
+            ->assertJson(function (AssertableJson $json) {
+                $json->has('items', 0)
+                    ->etc();
+            });
+    }
+
     /**
-     * The goal: The oldest notification become the first in order
+     * The goal: The oldest notification become the first in order.
      */
     public function test_notification_pagination_orders(): void
     {
-        $notificationsCount = 4;
+        $notificationsCount = rand(7, 18);
 
         for ($index = 0; $index < $notificationsCount; $index++) {
-            $this->travel(rand(3, 5))->minutes();
+            // Gives time gap between each notification
+            $this->travel(rand(3, 7))->minutes();
 
             Notification::factory()
                         // Each notification has 3 users
@@ -60,17 +80,18 @@ class IndexTest extends TestCase
             ->getJson(route('api.v1.notifications.index'))
             ->assertOk()
             ->assertJson(function (AssertableJson $json) use ($latestNotification) {
-                // Ensures the latest notification uuid match with the first item from the API response
+                // Ensures the latest notification's uuid match with the first item from the API response
                 $json->where('items.0.uuid', $latestNotification->uuid)
                     ->etc();
             });
 
+        // Fast forward 10 seconds to the future
         $this->travel(10)->seconds();
 
         $oldestNotification = $this->user->notifications()->oldest()->first();
 
         /**
-         * Now we begin the update, the earliest user in $oldestNotification group become the newest
+         * Now we begin the update, the earliest user in $oldestNotification users group become the newest
          * (We order the notifications based from column 'created_at' from notification_user table)
          */
         DB::table('notification_user')
@@ -90,7 +111,7 @@ class IndexTest extends TestCase
             });
     }
 
-    public function test_notifications_will_return_response_contains_expected_fields(): void
+    public function test_notification_will_return_response_contains_expected_fields(): void
     {
         // Create a notification to check its json keys
         Notification::factory()
@@ -101,6 +122,7 @@ class IndexTest extends TestCase
                     ->create([
                         'uuid' => Str::uuid()->toString(),
                         'type' => NotificationType::AccountFollower,
+                        'groups_count' => 1,
                         'user_id' => $this->user->id
                     ]);
 
@@ -124,6 +146,68 @@ class IndexTest extends TestCase
                         })
                     ->etc();
             });
+    }
+
+    public function test_notification_response_will_reflect_precise_groups_count(): void
+    {
+        $usersCount = 6;
+
+        $users = User::factory()
+                ->has(UserStat::factory(), 'stats')
+                ->count($usersCount)
+                ->create();
+
+        foreach ($users as $index => $user) {
+            $this->actingAs($user, 'web')
+                ->postJson(route('api.v1.user.follow', ['user' => $this->user->id]))
+                ->assertNoContent();
+
+            Queue::pushed(CreateAccountFollowerTypeOrAttachNewUserJob::class)->last()->handle();
+
+            $job = Queue::pushed(UpdateGroupsCountCacheJob::class)->last();
+
+            if ($index === 0) {
+                $this->assertNull($job); // First user of notification
+            } else {
+                $this->assertNotNull($job);
+
+                $job->handle();
+            }
+        }
+
+        $this->assertDatabaseCount('notification_user', $usersCount)
+            ->assertDatabaseCount(Notification::class, 1)
+            ->assertDatabaseHas(Notification::class, [
+                'type' => NotificationType::AccountFollower->value,
+                'groups_count' => 1,
+                'user_id' => $this->user->id
+            ]);
+
+        $this->actingAs($this->user, 'web')
+            ->getJson(route('api.v1.notifications.index'))
+            ->assertOk()
+            ->assertJson(function (AssertableJson $json) use ($usersCount) {
+                $json->has('items', 1)
+                    ->has('items.0', function (AssertableJson $json) use ($usersCount) {
+                        $json->has('groups_count')->where('groups_count', $usersCount)
+                            // Max 5 users
+                            ->has('users', $usersCount <= 5 ? $usersCount : 5)
+                            ->etc();
+                    })
+                    ->etc();
+            });
+    }
+
+    public function test_notification_route_exist(): void
+    {
+        $this->getJson(route('api.v1.notifications.index'))
+            ->assertUnauthorized();
+    }
+
+    public function test_notification_requires_authentication(): void
+    {
+        $this->getJson(route('api.v1.notifications.index'))
+            ->assertUnauthorized();
     }
 
     // @todo: Add more tests
