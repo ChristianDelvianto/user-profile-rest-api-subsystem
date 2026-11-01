@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Laravel\Sanctum\HasApiTokens;
 
 class UserStat extends Model
 {
@@ -43,6 +42,8 @@ class UserStat extends Model
         'following_count',
         'notifications_count',
         'posts_count',
+        'last_read_notification_id',
+        'last_read_notification_activity_id',
     ];
 
     /**
