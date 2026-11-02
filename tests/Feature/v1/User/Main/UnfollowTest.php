@@ -26,6 +26,7 @@ class UnfollowTest extends TestCase
     use RefreshDatabase, WithFaker;
 
     protected User $user;
+    protected string $userFollowersCountCacheKey;
 
     #[Override]
     protected function setUp(): void
@@ -46,15 +47,17 @@ class UnfollowTest extends TestCase
         $this->user = User::factory()
                     ->has(UserStat::factory(), 'stats')
                     ->create();
+
+        $this->userFollowersCountCacheKey = str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.followers_count'));
     }
 
     public function test_can_unfollow_successfully(): void
     {
-        $follower = User::factory()
+        $newUser = User::factory()
                     ->has(UserStat::factory(), 'stats')
                     ->create();
 
-        $this->actingAs($follower, 'web')
+        $this->actingAs($newUser, 'web')
             ->postJson(route('api.v1.user.follow', ['user' => $this->user->id]))
             ->assertNoContent();
 
@@ -65,7 +68,7 @@ class UnfollowTest extends TestCase
         // $follower decided to unfollow, in real-life scenario user could be misclicked
         $this->travel(2)->seconds();
 
-        $this->actingAs($follower, 'web')
+        $this->actingAs($newUser, 'web')
             ->deleteJson(route('api.v1.user.unfollow', ['user' => $this->user->id]))
             ->assertNoContent();
 
@@ -77,7 +80,7 @@ class UnfollowTest extends TestCase
         $this->assertDatabaseCount('user_follow', 0)
             ->assertDatabaseCount('notification_user', 0)
             ->assertDatabaseMissing('user_follow', [
-                'follower_id' => $follower->id,
+                'follower_id' => $newUser->id,
                 'user_id' => $this->user->id
             ])
             ->assertDatabaseHas(Notification::class, [
@@ -89,17 +92,17 @@ class UnfollowTest extends TestCase
 
     public function test_unfollow_idempotency(): void
     {
-        $follower = User::factory()->create();
+        $newUser = User::factory()->create();
 
         for ($index = 0; $index < 10; $index++) {
-            $this->actingAs($follower, 'web')
+            $this->actingAs($newUser, 'web')
                 ->deleteJson(route('api.v1.user.unfollow', ['user' => $this->user->id]))
                 ->assertNoContent();
         }
 
         $this->assertDatabaseCount('user_follow', 0)
             ->assertDatabaseMissing('user_follow', [
-                'follower_id' => $follower->id,
+                'follower_id' => $newUser->id,
                 'user_id' => $this->user->id
             ]);
     }
@@ -113,10 +116,8 @@ class UnfollowTest extends TestCase
 
     public function test_unfollow_queue_does_not_run_when_queue_middleware_lock_is_held(): void
     {
-        $cacheKey = str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.followers_count'));
-
         // Put initial value 10 ($this->user has 10 'followers_count' cache)
-        Cache::put($cacheKey, 10, now()->addSeconds(10));
+        Cache::put($this->userFollowersCountCacheKey, 10, now()->addSeconds(5));
 
         $job = new UpdateFollowersCountCacheJob($this->user->id, -1);
 
@@ -133,12 +134,12 @@ class UnfollowTest extends TestCase
             Bus::dispatchSync($job);
 
             // The job should not increment the count while locked.
-            $this->assertSame(10, (int) Cache::get($cacheKey));
+            $this->assertSame(10, (int) Cache::get($this->userFollowersCountCacheKey));
         } finally {
             $lock->release();
 
             // Remove the cache
-            Cache::forget($cacheKey);
+            Cache::forget($this->userFollowersCountCacheKey);
         }
     }
 
@@ -156,11 +157,11 @@ class UnfollowTest extends TestCase
 
     public function test_unfollow_will_dispatch_queues(): void
     {
-        $follower = User::factory()
+        $newUser = User::factory()
                     ->has(UserStat::factory(), 'stats')
                     ->create();
 
-        $this->user->followers()->attach($follower->id);
+        $this->user->followers()->attach($newUser->id);
 
         $notification = $this->user->notifications()
                         ->create([
@@ -169,9 +170,9 @@ class UnfollowTest extends TestCase
                             'groups_count' => 1
                         ]);
 
-        $notification->users()->attach($follower->id);
+        $notification->users()->attach($newUser->id);
 
-        $this->actingAs($follower, 'web')
+        $this->actingAs($newUser, 'web')
             ->deleteJson(route('api.v1.user.unfollow', ['user' => $this->user->id]))
             ->assertNoContent();
 
@@ -180,18 +181,18 @@ class UnfollowTest extends TestCase
                 && $job->count === -1;
         });
 
-        Queue::assertPushed(UpdateFollowingCountCacheJob::class, function ($job) use ($follower) {
-            return $job->userId === $follower->id
+        Queue::assertPushed(UpdateFollowingCountCacheJob::class, function ($job) use ($newUser) {
+            return $job->userId === $newUser->id
                 && $job->count === -1;
         });
 
-        Queue::assertPushed(AccountFollowerTypeDetachUserJob::class, function ($job) use ($follower) {
-            return $job->follower->id === $follower->id
+        Queue::assertPushed(AccountFollowerTypeDetachUserJob::class, function ($job) use ($newUser) {
+            return $job->follower->id === $newUser->id
                 && $job->user->id === $this->user->id;
         });
 
-        Queue::assertPushed(AccountFollowerTypeDetachUserJob::class, function ($job) use ($follower) {
-            return $job->follower->id === $follower->id
+        Queue::assertPushed(AccountFollowerTypeDetachUserJob::class, function ($job) use ($newUser) {
+            return $job->follower->id === $newUser->id
                 && $job->user->id === $this->user->id;
         });
 
@@ -207,12 +208,12 @@ class UnfollowTest extends TestCase
 
     public function test_unfollow_will_not_dispatch_queues_if_user_not_followed(): void
     {
-        $follower = User::factory()
-                    ->has(UserStat::factory(), 'stats')
-                    ->create();
+        $newUser = User::factory()
+                ->has(UserStat::factory(), 'stats')
+                ->create();
 
         // Will return 204, idempotent
-        $this->actingAs($follower, 'web')
+        $this->actingAs($newUser, 'web')
             ->deleteJson(route('api.v1.user.unfollow', ['user' => $this->user->id]))
             ->assertNoContent();
 
@@ -225,11 +226,11 @@ class UnfollowTest extends TestCase
      */
     public function test_unfollow_will_reinitiate_followers_count_cache_after_some_time(): void
     {
-        $user = User::factory()
-                ->has(UserStat::factory(), 'stats')
-                ->create();
+        $newUser = User::factory()
+                    ->has(UserStat::factory(), 'stats')
+                    ->create();
 
-        $this->actingAs($user, 'web')
+        $this->actingAs($newUser, 'web')
             ->postJson(route('api.v1.user.follow', ['user' => $this->user->id]))
             ->assertNoContent();
 
@@ -239,10 +240,10 @@ class UnfollowTest extends TestCase
         $this->travel(config('custom.cache.user_stat.ttl_duration'))->seconds();
 
         // Ensures cache expired
-        $this->assertFalse(Cache::has(str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.followers_count'))));
+        $this->assertFalse(Cache::has($this->userFollowersCountCacheKey));
 
         // $user decided to unfollow
-        $this->actingAs($user, 'web')
+        $this->actingAs($newUser, 'web')
             ->deleteJson(route('api.v1.user.unfollow', ['user' => $this->user->id]))
             ->assertNoContent();
 
@@ -250,7 +251,7 @@ class UnfollowTest extends TestCase
         Queue::pushed(UpdateFollowersCountCacheJob::class)->last()->handle();
 
         // Ensures cache reinitiated
-        $this->assertTrue(Cache::has(str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.followers_count'))));
+        $this->assertTrue(Cache::has($this->userFollowersCountCacheKey));
     }
 
     public function test_unfollow_will_update_stats_count_cache(): void
@@ -258,40 +259,37 @@ class UnfollowTest extends TestCase
         $usersCount = 10;
 
         // Set initial followers_count cache for $this->user
-        Cache::put(str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.followers_count')), $usersCount, now()->addSeconds(10));
+        Cache::put($this->userFollowersCountCacheKey, $usersCount, now()->addSeconds(10));
 
         for ($index = $usersCount; $index > 0; $index--) {
-            $follower = User::factory()
+            $newUser = User::factory()
                         ->has(UserStat::factory(), 'stats')
                         ->create();
 
-            // Attach $follower first
-            $this->user->followers()->attach($follower->id);
+            $newUserFollowingCountCacheKey = str_replace('*', $newUser->id, config('custom.cache.user_stat.pattern.following_count'));
 
-            // Set following_count cache for $follower
-            Cache::put(str_replace('*', $follower->id, config('custom.cache.user_stat.pattern.following_count')), 1, now()->addSeconds(10));
+            // First, attach $newUser as follower
+            $this->user->followers()->attach($newUser->id);
 
-            // The $follower canceled their follow
-            $this->actingAs($follower, 'web')
+            // Set following_count cache for $newUser (Follower), set short TTL so it will expires automatically
+            Cache::put($newUserFollowingCountCacheKey, 1, now()->addSeconds(5));
+
+            // The $newUser (Follower) canceled their follow
+            $this->actingAs($newUser, 'web')
                 ->deleteJson(route('api.v1.user.unfollow', ['user' => $this->user->id]))
                 ->assertNoContent();
 
-            $this->assertDatabaseMissing('user_follow', [
-                'follower_id' => $follower->id,
-                'user_id' => $this->user->id
-            ]);
-
-            // Process the job
+            // Process the job (For $this->user)
             Queue::pushed(UpdateFollowersCountCacheJob::class)->last()->handle();
 
-            // Process the job (For $follower)
+            // Process the job (For $newUser, the follower)
             Queue::pushed(UpdateFollowingCountCacheJob::class)->last()->handle();
 
             // Ensures $this->user cached followers_count progressively decremented
-            $this->assertEquals(($index - 1), Cache::get(str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.followers_count'))));
+            $this->assertEquals(($index - 1), Cache::get($this->userFollowersCountCacheKey));
 
-            // Ensures follower has following_count cache is 0
-            $this->assertEquals(0, Cache::get(str_replace('*', $follower->id, config('custom.cache.user_stat.pattern.following_count')), null));
+            // Ensures $newUser (Follower) has following_count cache is 0
+            $this->assertEquals(0, Cache::get($newUserFollowingCountCacheKey, null));
         }
     }
 }
