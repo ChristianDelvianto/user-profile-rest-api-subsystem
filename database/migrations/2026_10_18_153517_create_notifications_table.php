@@ -24,6 +24,7 @@ return new class extends Migration
             $table->unique('uuid');
             $table->index('user_id');
             $table->index(['user_id', 'type', 'created_at']); // For creating new grouped notification
+            $table->index(['created_at', 'groups_count'], 'idx_cron_clean_up'); // For cron cleanup job (Every X minutes; We will delete the notifications that have groups_count = 0)
         });
 
         // Add the non-negative constraint
