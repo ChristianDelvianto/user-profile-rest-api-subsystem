@@ -61,7 +61,9 @@ class Notification extends Model
      */
     protected function casts(): array
     {
-        return [];
+        return [
+            'last_activity_at' => 'datetime', // For NotificationResource
+        ];
     }
 
     /**
