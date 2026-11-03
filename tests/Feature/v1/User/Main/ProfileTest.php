@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\UserStat;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
+use Illuminate\Routing\Middleware\ThrottleRequestsWithRedis;
 use Illuminate\Testing\Fluent\AssertableJson;
 use Override;
 use Tests\TestCase;
@@ -26,6 +27,8 @@ class ProfileTest extends TestCase
             'Accept' => 'application/json',
             'Origin' => config('app.url')
         ]);
+
+        $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
 
         $this->user = User::factory()
                     ->has(UserStat::factory(), 'stats')
@@ -73,7 +76,7 @@ class ProfileTest extends TestCase
             });
     }
 
-    public function test_user_profile_response_has_is_followed_set_to_true_if_user_followed(): void
+    public function test_user_profile_response_have_is_followed_set_to_true_if_user_followed(): void
     {
         $follower = User::factory()
                     ->has(UserStat::factory(), 'stats')
@@ -90,6 +93,16 @@ class ProfileTest extends TestCase
             });
     }
 
+    public function test_user_profile_will_have_is_followed_key_set_to_false_for_guest(): void
+    {
+        $this->getJson(route('api.v1.user.profile', ['user' => $this->user->username]))
+            ->assertOk()
+            ->assertJson(function (AssertableJson $json) {
+                $json->has('is_followed')->where('is_followed', false)
+                    ->etc();
+            });
+    }
+
     public function test_user_profile_route_exists(): void
     {
         $this->getJson(route('api.v1.user.profile', ['user' => $this->user->username]))
@@ -100,16 +113,6 @@ class ProfileTest extends TestCase
     {
         $this->getJson(route('api.v1.user.profile', ['user' => 'no_user']))
             ->assertNotFound();
-    }
-
-    public function test_user_profile_will_have_is_following_key_set_to_false_for_guest(): void
-    {
-        $this->getJson(route('api.v1.user.profile', ['user' => $this->user->username]))
-            ->assertOk()
-            ->assertJson(function (AssertableJson $json) {
-                $json->has('is_followed')->where('is_followed', false)
-                    ->etc();
-            });
     }
 
     // @todo: Add more tests

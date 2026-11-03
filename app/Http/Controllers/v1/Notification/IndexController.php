@@ -5,6 +5,9 @@ namespace App\Http\Controllers\v1\Notification;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\v1\NotificationResource;
 use App\Models\Notification;
+use App\Models\User;
+use App\Models\UserStat;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -45,6 +48,12 @@ class IndexController extends Controller
                     ->cursorPaginate();
 
         if ($pagination->isNotEmpty()) {
+            /**
+             * Only when the user has notifications, then we will fetch the user stats and set the 'is_read' attribute for each notification.
+             * This is to avoid unnecessary queries when the user has no notifications.
+             */
+            $this->setReadAttribute($request->user(), $pagination->getCollection());
+
             $this->setGroupsCountValue($pagination->getCollection());
         }
 
@@ -78,6 +87,20 @@ class IndexController extends Controller
             if (isset($groupsCountCache)) {
                 $notification->setAttribute('groups_count', (int) $groupsCountCache);
             }
+        }
+    }
+
+    /**
+     * Set notifications 'is_read' attribute and the value comes from comparing user's user_stats `last_read_notification_at` with notification's `last_activity_at`.
+     */
+    protected function setReadAttribute(User $user, Collection $notifications): void
+    {
+        $userStat = UserStat::where('user_id', $user->id)->firstOrFail();
+
+        $lastReadNotificationAt = Carbon::parse($userStat->last_read_notification_at);
+
+        foreach ($notifications as $notification) {
+            $notification->setAttribute('is_read', $lastReadNotificationAt->gt($notification->last_activity_at));
         }
     }
 }

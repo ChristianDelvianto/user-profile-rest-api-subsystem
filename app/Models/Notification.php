@@ -42,6 +42,7 @@ class Notification extends Model
         'uuid',
         'type',
         'groups_count',
+        'data',
         'user_id',
     ];
 
@@ -61,7 +62,10 @@ class Notification extends Model
      */
     protected function casts(): array
     {
-        return [];
+        return [
+            'data' => 'array',
+            'last_activity_at' => 'datetime', // For NotificationResource
+        ];
     }
 
     /**

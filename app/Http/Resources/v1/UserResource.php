@@ -19,7 +19,7 @@ class UserResource extends JsonResource
             'username' => $this->username,
             'name' => $this->name,
             'activity_id' => $this->whenHas('activity_id'), // For notifications
-            'activity_created_at' => $this->whenHas('activity_created_at') // For notifications
+            'activity_created_at' => $this->whenHas('activity_created_at', $this->activity_created_at?->getTimestamp()) // For notifications (We have to use '?' before getTimestamp() otherwise, it will says that its NULL)
         ];
     }
 }

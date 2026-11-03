@@ -18,9 +18,11 @@ class NotificationResource extends JsonResource
             'uuid' => $this->uuid,
             'type' =>  $this->type,
             'groups_count' => $this->groups_count,
-            'created_at' => $this->created_at,
+            'data' => $this->data,
+            'created_at' => $this->created_at->getTimestamp(),
             'last_activity_id' => $this->whenHas('last_activity_id'),
-            'last_activity_at' => $this->whenHas('last_activity_at'),
+            'last_activity_at' => $this->whenHas('last_activity_at', $this->last_activity_at->getTimestamp()),
+            'is_read' => $this->whenHas('is_read'),
             'users' => $this->whenLoaded('users', UserResource::collection($this->users))
         ];
     }
