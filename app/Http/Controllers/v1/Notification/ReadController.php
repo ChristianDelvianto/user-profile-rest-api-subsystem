@@ -7,6 +7,7 @@ use App\Jobs\UserStat\UpdateLastReadNotificationJob;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class ReadController extends Controller
 {
@@ -17,6 +18,13 @@ class ReadController extends Controller
     {
         UpdateLastReadNotificationJob::dispatch($request->user(), Carbon::now())
             ->onQueue('high');
+
+        // Set user's notifications_count cache to 0
+        Cache::put(
+            str_replace('*', $request->user()->id, config('custom.cache.user_stat.pattern.notifications_count')),
+            0,
+            config('custom.cache.user_stat.ttl_duration')
+        );
 
         return response()->json(null, 204);
     }
