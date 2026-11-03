@@ -58,38 +58,58 @@ class IndexTest extends TestCase
     /**
      * The goal: The oldest notification become the first in order.
      */
-    public function test_notification_pagination_orders(): void
+    public function test_notification_will_be_ordered_by_the_latest_of_each_group(): void
     {
-        $notificationsCount = rand(7, 18);
+        /**
+         * The reason we put min 21 is to ensure that the oldest notification (out of first pagination page) will be in the first pagination page.
+         * (We paginate the notifications by 20 items per page)
+         */
+        $notificationsCount = rand(21, 41);
 
         for ($index = 0; $index < $notificationsCount; $index++) {
             // Gives time gap between each notification
             $this->travel(rand(3, 7))->minutes();
 
-            Notification::factory()
-                        // Each notification has 3 users
-                        ->has(
-                            User::factory()
-                                ->has(UserStat::factory(), 'stats')
-                                ->count(3)
-                        , 'users')
-                        ->create([
-                            'uuid' => Str::uuid()->toString(),
-                            'type' => NotificationType::AccountFollower->value,
-                            'user_id' => $this->user->id
-                        ]);
+            $notification = Notification::factory()
+                            ->create([
+                                'uuid' => Str::uuid()->toString(),
+                                'type' => NotificationType::AccountFollower->value,
+                                'user_id' => $this->user->id
+                            ]);
+
+            // Each notification has 3 users
+            $usersCount = 3;
+
+            for ($userIndex = 0; $userIndex < $usersCount; $userIndex++) {
+                // Gives time gap between each user in the same notification group,
+                // so we can clearly see if users in the same notification group will be ordered by the latest user (from notification_user.created_at column)
+                $this->travel(rand(1, 30))->seconds();
+
+                $user = User::factory()
+                        ->has(UserStat::factory(), 'stats')
+                        ->create();
+
+                $notification->users()->attach($user->id);
+            }
         }
 
         $latestNotification = $this->user->notifications()->latest()->first();
 
-        $this->actingAs($this->user, 'web')
-            ->getJson(route('api.v1.notifications.index'))
-            ->assertOk()
-            ->assertJson(function (AssertableJson $json) use ($latestNotification) {
-                // Ensures the latest notification's uuid match with the first item from the API response
-                $json->where('items.0.uuid', $latestNotification->uuid)
-                    ->etc();
-            });
+        $oldestNotification = $this->user->notifications()->oldest()->first();
+
+        $response = $this->actingAs($this->user, 'web')
+                    ->getJson(route('api.v1.notifications.index'))
+                    ->assertOk()
+                    ->assertJson(function (AssertableJson $json) use ($latestNotification, $oldestNotification) {
+                        // Ensures the latest notification's uuid match with the first item from the API response
+                        $json->where('items.0.uuid', $latestNotification->uuid)
+                            ->etc();
+                    });
+
+        $notifications = collect($response->json('items'));
+
+        // Ensures $oldestNotification does not exists in the first pagination
+        $this->assertFalse($notifications->contains('uuid', '=', $oldestNotification->uuid));
 
         // Fast forward 10 seconds to the future
         $this->travel(10)->seconds();
@@ -102,7 +122,7 @@ class IndexTest extends TestCase
          */
         DB::table('notification_user')
         ->where('notification_id', $oldestNotification->id)
-        ->oldest('user_id')
+        ->oldest()
         ->update(['created_at' => now()]);
 
         $this->actingAs($this->user, 'web')
@@ -115,6 +135,57 @@ class IndexTest extends TestCase
                     ->where('items.1.uuid', $latestNotification->uuid)
                     ->etc();
             });
+    }
+
+    public function test_notification_will_have_value_is_read_set_to_false(): void
+    {
+        $firstNotification = Notification::factory()
+                            ->has(
+                                User::factory()
+                                    ->has(UserStat::factory(), 'stats')
+                            , 'users')
+                            ->create([
+                                'uuid' => Str::uuid()->toString(),
+                                'type' => NotificationType::AccountFollower->value,
+                                'groups_count' => 1,
+                                'user_id' => $this->user->id
+                            ]);
+
+        $this->travel(3)->seconds();
+
+        // User sees the notifications, and we update the last_read_notification_at
+        $this->user->stats()->update(['last_read_notification_at' => now()]);
+
+        // New notification came in
+        $this->travel(3)->seconds();
+
+        $secondNotification = Notification::factory()
+                            ->has(
+                                User::factory()
+                                    ->has(UserStat::factory(), 'stats')
+                            , 'users')
+                            ->create([
+                                'uuid' => Str::uuid()->toString(),
+                                'type' => NotificationType::AccountFollower->value,
+                                'groups_count' => 1,
+                                'user_id' => $this->user->id
+                            ]);
+
+        $response = $this->actingAs($this->user, 'web')
+                    ->getJson(route('api.v1.notifications.index'))
+                    ->assertOk()
+                    ->assertJson(function (AssertableJson $json) {
+                        $json->has('items', 2)
+                            ->etc();
+                    });
+
+        $notifications = collect($response->json('items'));
+
+        // Ensures $firstNotification has 'is_read' set to true
+        $this->assertTrue($notifications->where('uuid', '=', $firstNotification->uuid)->first()['is_read']);
+
+        // Ensures $secondNotification has 'is_read' set to false
+        $this->assertFalse($notifications->where('uuid', '=', $secondNotification->uuid)->first()['is_read']);
     }
 
     public function test_notification_will_return_response_contains_expected_fields(): void
@@ -147,6 +218,7 @@ class IndexTest extends TestCase
                                 ->has('created_at')
                                 ->has('last_activity_id')
                                 ->has('last_activity_at')
+                                ->has('is_read')
                                 ->has('users', 1)
                                 ->etc();
                         })
