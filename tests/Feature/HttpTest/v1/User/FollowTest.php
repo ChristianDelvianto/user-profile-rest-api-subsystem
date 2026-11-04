@@ -196,6 +196,7 @@ class FollowTest extends TestCase
                     ->post("{$this->baseUrl}/api/v1/user/{$user->id}/follow");
             })->all();
         })
+        ->concurrency($usersCount)
         ->send(); // FIRE!!!
 
         $worker = new Process([
