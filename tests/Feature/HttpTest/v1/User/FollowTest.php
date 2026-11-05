@@ -89,7 +89,7 @@ class FollowTest extends TestCase
                     ])
                     ->throw();
 
-        $this->assertEquals(200, $response->status(), 'Login failed for user id: ' . $follower->id);
+        $this->assertEquals(200, $response->status(), "Login failed for user id: {$follower->id}");
 
         // This line is mandatory, otherwise the test will throw 419 error
         $csrfCookie = $cookieJar->getCookieByName('XSRF-TOKEN');
@@ -108,6 +108,7 @@ class FollowTest extends TestCase
                     ->post("{$this->baseUrl}/api/v1/user/{$user->id}/follow");
             }
         })
+        ->concurrency($concurrencyCount)
         ->send();
 
         // Ensures only 1 follower, no duplicate records
