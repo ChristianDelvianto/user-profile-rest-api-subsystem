@@ -113,6 +113,9 @@ class FollowTest extends TestCase
 
         // Ensures only 1 follower, no duplicate records
         $this->assertSame(1, $user->followers()->count());
+
+        // Ensure $user only have one notification
+        $this->assertSame(1, $user->notifications()->count());
     }
 
     /**
@@ -222,12 +225,18 @@ class FollowTest extends TestCase
         $this->assertSame($usersCount, $user->followers()->count());
 
         // Ensures $user followers_count cache value equal with $usersCount
-        $this->assertSame($usersCount, (int) Cache::get(str_replace('*', $user->id, config('custom.cache.user_stat.pattern.followers_count')), 0));
+        $this->assertSame(
+            $usersCount,
+            (int) Cache::get(str_replace('*', $user->id, config('custom.cache.user_stat.pattern.followers_count')), 0)
+        );
 
         // Ensures $user notifications_count cache value equal with $usersCount
-        $this->assertSame($usersCount, (int) Cache::get(str_replace('*', $user->id, config('custom.cache.user_stat.pattern.notifications_count')), 0));
+        $this->assertSame(
+            $usersCount,
+            (int) Cache::get(str_replace('*', $user->id, config('custom.cache.user_stat.pattern.notifications_count')), 0)
+        );
 
-        // Ensure $user only have one notification (Because we are using queue pipeline)
+        // Ensure $user only have one notification
         $this->assertSame(1, $user->notifications()->count());
     }
 }
