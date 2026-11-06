@@ -42,6 +42,7 @@ class UserStat extends Model
         'following_count',
         'notifications_count',
         'posts_count',
+        'last_read_notification_at',
     ];
 
     /**
@@ -58,7 +59,9 @@ class UserStat extends Model
      */
     protected function casts(): array
     {
-        return [];
+        return [
+            'last_read_notification_at' => 'datetime',
+        ];
     }
 
     /**

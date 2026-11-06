@@ -17,6 +17,7 @@ return new class extends Migration
             $table->uuid(); // Public-facing identifier
             $table->string('type', 64); // Support multiple types; See App\Enums\NotificationType
             $table->unsignedBigInteger('groups_count')->default(1);
+            $table->json('data')->nullable(); // Store additional data for the notification
             $table->foreignId('user_id')->constrained('users', 'id')->cascadeOnDelete();
             $table->timestamps();
 
@@ -24,6 +25,7 @@ return new class extends Migration
             $table->unique('uuid');
             $table->index('user_id');
             $table->index(['user_id', 'type', 'created_at']); // For creating new grouped notification
+            $table->index(['created_at', 'groups_count'], 'idx_hourly_cron_clean_up'); // For cron cleanup job (Every X minutes; We will delete the notifications that have groups_count = 0)
         });
 
         // Add the non-negative constraint

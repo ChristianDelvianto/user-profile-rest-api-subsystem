@@ -25,6 +25,9 @@ class FollowTest extends TestCase
     use RefreshDatabase, WithFaker;
 
     protected User $user;
+    protected string $userFollowersCountCacheKey;
+    protected string $userFollowingCountCacheKey;
+    protected string $userNotificationsCountCacheKey;
 
     #[Override]
     protected function setUp(): void
@@ -45,20 +48,26 @@ class FollowTest extends TestCase
         $this->user = User::factory()
                     ->has(UserStat::factory(), 'stats')
                     ->create();
+
+        $this->userFollowersCountCacheKey = str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.followers_count'));
+        $this->userFollowingCountCacheKey = str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.following_count'));
+        $this->userNotificationsCountCacheKey = str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.notifications_count'));
     }
 
     public function test_can_follow_successfully(): void
     {
-        $follower = User::factory()
+        $newUser = User::factory()
                     ->has(UserStat::factory(), 'stats')
                     ->create();
 
-        $this->actingAs($follower, 'web')
+        $this->actingAs($newUser, 'web')
             ->postJson(route('api.v1.user.follow', ['user' => $this->user->id]))
             ->assertNoContent();
 
         // Process the job
-        Queue::pushed(CreateAccountFollowerTypeOrAttachNewUserJob::class)->last()->handle();
+        Queue::pushed(CreateAccountFollowerTypeOrAttachNewUserJob::class, function (CreateAccountFollowerTypeOrAttachNewUserJob $job) {
+            $job->handle();
+        });
 
         // Ensure UpdateGroupsCountCacheJob not pushed (first user of the notification)
         Queue::assertNotPushed(UpdateGroupsCountCacheJob::class);
@@ -66,7 +75,7 @@ class FollowTest extends TestCase
         $this->assertDatabaseCount('user_follow', 1)
             ->assertDatabaseCount('notification_user', 1)
             ->assertDatabaseHas('user_follow', [
-                'follower_id' => $follower->id,
+                'follower_id' => $newUser->id,
                 'user_id' => $this->user->id
             ])
             ->assertDatabaseHas(Notification::class, [
@@ -86,7 +95,9 @@ class FollowTest extends TestCase
             ->assertNoContent();
 
         // Process the job
-        Queue::pushed(CreateAccountFollowerTypeOrAttachNewUserJob::class)->last()->handle();
+        Queue::pushed(CreateAccountFollowerTypeOrAttachNewUserJob::class, function (CreateAccountFollowerTypeOrAttachNewUserJob $job) {
+            $job->handle();
+        });
 
         $this->assertDatabaseCount('user_follow', 1)
             ->assertDatabaseCount('notification_user', 1)
@@ -99,23 +110,21 @@ class FollowTest extends TestCase
         
         // Get 10 more followers
         for ($index = 0; $index < $newFollowersCount; $index++) {
-            $newFollower = User::factory()
+            $newUser = User::factory()
                         ->has(UserStat::factory(), 'stats')
                         ->create();
 
-            $this->actingAs($newFollower, 'web')
+            $this->actingAs($newUser, 'web')
                 ->postJson(route('api.v1.user.follow', ['user' => $this->user->id]))
                 ->assertNoContent();
 
             $this->assertDatabaseHas('user_follow', [
-                'follower_id' => $newFollower->id,
+                'follower_id' => $newUser->id,
                 'user_id' => $this->user->id
             ]);
 
-            // Process the job
-            Queue::pushed(CreateAccountFollowerTypeOrAttachNewUserJob::class)
-                ->last() // Must use last() here
-                ->handle();
+            // Process the job (Must use last() here)
+            Queue::pushed(CreateAccountFollowerTypeOrAttachNewUserJob::class)->last()->handle();
 
             if ($index === 0) {
                 // Assert no other users belong to the notification, because its first user of the group
@@ -135,22 +144,22 @@ class FollowTest extends TestCase
         $followersCount = 10;
 
         for ($index = 0; $index < $followersCount; $index++) {
-            $follower = User::factory()
+            $newUser = User::factory()
                         ->has(UserStat::factory(), 'stats')
                         ->create();
 
-            $this->actingAs($follower, 'web')
+            $this->actingAs($newUser, 'web')
                 ->postJson(route('api.v1.user.follow', ['user' => $this->user->id]))
                 ->assertNoContent();
 
             Queue::assertPushed(CreateAccountFollowerTypeOrAttachNewUserJob::class);
 
-            // Process the job
+            // Process the job (Must use last() here)
             Queue::pushed(CreateAccountFollowerTypeOrAttachNewUserJob::class)->last()->handle();
 
-            $this->assertDatabaseHas('notification_user', ['user_id' => $follower->id]);
+            $this->assertDatabaseHas('notification_user', ['user_id' => $newUser->id]);
 
-            if ($index === 0) {
+            if ($index === 0) { // First user of the notification, so no need to update groups_count
                 Queue::assertNotPushed(UpdateGroupsCountCacheJob::class);
             } else {
                 Queue::assertPushed(UpdateGroupsCountCacheJob::class);
@@ -169,21 +178,27 @@ class FollowTest extends TestCase
 
     public function test_follow_idempotency(): void
     {
-        $follower = User::factory()
+        $newUser = User::factory()
                     ->has(UserStat::factory(), 'stats')
                     ->create();
 
         for ($index = 0; $index < 10; $index++) {
-            $this->actingAs($follower, 'web')
+            $this->actingAs($newUser, 'web')
                 ->postJson(route('api.v1.user.follow', ['user' => $this->user->id]))
                 ->assertNoContent();
         }
 
         $this->assertDatabaseCount('user_follow', 1)
             ->assertDatabaseHas('user_follow', [
-                'follower_id' => $follower->id,
+                'follower_id' => $newUser->id,
                 'user_id' => $this->user->id
             ]);
+
+        Queue::assertPushedTimes(UpdateFollowersCountCacheJob::class, 1);
+
+        Queue::assertPushedTimes(UpdateFollowingCountCacheJob::class, 1);
+
+        Queue::assertPushedTimes(CreateAccountFollowerTypeOrAttachNewUserJob::class, 1);
     }
 
     public function test_follow_one_self_will_throw_403_error(): void
@@ -195,10 +210,8 @@ class FollowTest extends TestCase
 
     public function test_follow_queue_does_not_run_when_queue_middleware_lock_is_held(): void
     {
-        $cacheKey = str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.followers_count'));
-
         // Put initial value 10 ($this->user has 10 'followers_count' cache)
-        Cache::put($cacheKey, 10, now()->addSeconds(10));
+        Cache::put($this->userFollowersCountCacheKey, 10, now()->addSeconds(10));
 
         $job = new UpdateFollowersCountCacheJob($this->user->id, 1);
 
@@ -215,12 +228,12 @@ class FollowTest extends TestCase
             Bus::dispatchSync($job);
 
             // The job should not increment the count while locked.
-            $this->assertSame(10, (int) Cache::get($cacheKey));
+            $this->assertSame(10, (int) Cache::get($this->userFollowersCountCacheKey));
         } finally {
             $lock->release();
 
             // Remove the cache
-            Cache::forget($cacheKey);
+            Cache::forget($this->userFollowersCountCacheKey);
         }
     }
 
@@ -238,26 +251,26 @@ class FollowTest extends TestCase
 
     public function test_follow_will_dispatch_queues(): void
     {
-        $follower = User::factory()
+        $newUser = User::factory()
                     ->has(UserStat::factory(), 'stats')
                     ->create();
 
-        $this->actingAs($follower, 'web')
+        $this->actingAs($newUser, 'web')
             ->postJson(route('api.v1.user.follow', ['user' => $this->user->id]))
             ->assertNoContent();
 
-        Queue::assertPushed(UpdateFollowersCountCacheJob::class, function ($job) {
+        Queue::assertPushed(UpdateFollowersCountCacheJob::class, function (UpdateFollowersCountCacheJob $job) {
             return $job->userId === $this->user->id
                 && $job->count === 1;
         });
 
-        Queue::assertPushed(UpdateFollowingCountCacheJob::class, function ($job) use ($follower) {
-            return $job->userId === $follower->id
+        Queue::assertPushed(UpdateFollowingCountCacheJob::class, function (UpdateFollowingCountCacheJob $job) use ($newUser) {
+            return $job->userId === $newUser->id
                 && $job->count === 1;
         });
 
-        Queue::assertPushed(CreateAccountFollowerTypeOrAttachNewUserJob::class, function ($job) use ($follower) {
-            return $job->follower->id === $follower->id
+        Queue::assertPushed(CreateAccountFollowerTypeOrAttachNewUserJob::class, function (CreateAccountFollowerTypeOrAttachNewUserJob $job) use ($newUser) {
+            return $job->follower->id === $newUser->id
                 && $job->user->id === $this->user->id;
         });
 
@@ -269,14 +282,14 @@ class FollowTest extends TestCase
 
     public function test_follow_will_not_dispatch_queues_if_user_already_followed(): void
     {
-        $follower = User::factory()
+        $newUser = User::factory()
                     ->has(UserStat::factory(), 'stats')
                     ->create();
 
-        $this->user->followers()->attach($follower->id);
+        $this->user->followers()->attach($newUser->id);
 
         // Will return 204, idempotent
-        $this->actingAs($follower, 'web')
+        $this->actingAs($newUser, 'web')
             ->postJson(route('api.v1.user.follow', ['user' => $this->user->id]))
             ->assertNoContent();
 
@@ -289,6 +302,8 @@ class FollowTest extends TestCase
      */
     public function test_follow_will_reinitiate_followers_count_cache_after_some_time(): void
     {
+        config(['cache.default' => 'array']);
+
         $firstUser = User::factory()
                     ->has(UserStat::factory(), 'stats')
                     ->create();
@@ -298,15 +313,17 @@ class FollowTest extends TestCase
             ->assertNoContent();
 
         // Process the job
-        Queue::pushed(UpdateFollowersCountCacheJob::class)->last()->handle();
+        Queue::pushed(UpdateFollowersCountCacheJob::class, function (UpdateFollowersCountCacheJob $job) {
+            $job->handle();
+        });
 
         // Ensures cache exists after being followed by $firstUser
-        $this->assertTrue(Cache::has(str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.followers_count'))));
+        $this->assertTrue(Cache::has($this->userFollowersCountCacheKey));
 
         $this->travel(config('custom.cache.user_stat.ttl_duration'))->seconds();
 
         // Ensures cache expired
-        $this->assertFalse(Cache::has(str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.followers_count'))));
+        $this->assertFalse(Cache::has($this->userFollowersCountCacheKey));
 
         $secondUser = User::factory()
                     ->has(UserStat::factory(), 'stats')
@@ -317,34 +334,36 @@ class FollowTest extends TestCase
             ->assertNoContent();
 
         // Process the job
-        Queue::pushed(UpdateFollowersCountCacheJob::class)->last()->handle();
+        Queue::pushed(UpdateFollowersCountCacheJob::class, function (UpdateFollowersCountCacheJob $job) {
+            $job->handle();
+        });
          
         // Ensures cache reinitiated
-        $this->assertTrue(Cache::has(str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.followers_count'))));
+        $this->assertTrue(Cache::has($this->userFollowersCountCacheKey));
     }
 
     public function test_follow_will_store_related_stats_count_to_cache(): void
     {
-        $follower = User::factory()
+        $newUser = User::factory()
                     ->has(UserStat::factory(), 'stats')
                     ->create();
 
-        $this->actingAs($follower, 'web')
+        $this->actingAs($newUser, 'web')
             ->postJson(route('api.v1.user.follow', ['user' => $this->user->id]))
             ->assertNoContent();
 
         $this->assertDatabaseHas('user_follow', [
-            'follower_id' => $follower->id,
+            'follower_id' => $newUser->id,
             'user_id' => $this->user->id
         ]);
 
         // Process the job (To see if cache created)
-        Queue::pushed(UpdateFollowersCountCacheJob::class, function ($job) {
+        Queue::pushed(UpdateFollowersCountCacheJob::class, function (UpdateFollowersCountCacheJob $job) {
             $job->handle();
         });
 
         // Process the job (To see if cache created)
-        Queue::pushed(UpdateFollowingCountCacheJob::class, function ($job) {
+        Queue::pushed(UpdateFollowingCountCacheJob::class, function (UpdateFollowingCountCacheJob $job) {
             $job->handle();
         });
 
@@ -354,12 +373,21 @@ class FollowTest extends TestCase
                 'followers_count' => 0
             ])
             ->assertDatabaseHas(UserStat::class, [
-                'user_id' => $follower->id,
+                'user_id' => $newUser->id,
                 'followers_count' => 0
             ]);
 
-        $this->assertSame(1, (int) Cache::get(str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.followers_count')), 0));
-        $this->assertSame(1, (int) Cache::get(str_replace('*', $follower->id, config('custom.cache.user_stat.pattern.following_count')), 0));
+        $this->assertSame(
+            1,
+            (int) Cache::get($this->userFollowersCountCacheKey, 0)
+        );
+
+        $newUserFollowingCacheKey = str_replace('*', $newUser->id, config('custom.cache.user_stat.pattern.following_count'));
+        
+        $this->assertSame(
+            1,
+            (int) Cache::get($newUserFollowingCacheKey, 0)
+        );
     }
 
     public function test_follow_will_update_stats_count_cache(): void
@@ -367,18 +395,18 @@ class FollowTest extends TestCase
         $usersCount = 10;
 
         for ($index = 0; $index < $usersCount; $index++) {
-            $follower = User::factory()
+            $newUser = User::factory()
                         ->has(UserStat::factory(), 'stats')
                         ->create();
 
-            $this->actingAs($follower, 'web')
+            $this->actingAs($newUser, 'web')
                 ->postJson(route('api.v1.user.follow', ['user' => $this->user->id]))
                 ->assertNoContent();
 
             // Process the job
             Queue::pushed(UpdateFollowersCountCacheJob::class)->last()->handle();
 
-            // Process the job (For $follower)
+            // Process the job (For $newUser)
             Queue::pushed(UpdateFollowingCountCacheJob::class)->last()->handle();
 
             // Process the job for notification
@@ -395,14 +423,25 @@ class FollowTest extends TestCase
             // Process the job for $this->user notifications_count
             Queue::pushed(UpdateNotificationsCountCacheJob::class)->last()->handle();
 
-            // Ensures $follower has 1 following_count cache value
-            $this->assertSame(1, (int) Cache::get(str_replace('*', $follower->id, config('custom.cache.user_stat.pattern.following_count')), 0));
+            $newUserFollowingCacheKey = str_replace('*', $newUser->id, config('custom.cache.user_stat.pattern.following_count'));
+
+            // Ensures $newUser (Follower) has 1 following_count cache value
+            $this->assertSame(
+                1,
+                (int) Cache::get($newUserFollowingCacheKey, 0)
+            );
 
             // Ensures $this->user followers_count cache value progressively incremented
-            $this->assertSame(($index + 1), (int) Cache::get(str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.followers_count')), 0));
+            $this->assertSame(
+                ($index + 1),
+                (int) Cache::get($this->userFollowersCountCacheKey, 0)
+            );
 
             // Ensures $this->user notifications_count cache value progressively incremented
-            $this->assertSame(($index + 1), (int) Cache::get(str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.notifications_count')), 0));
+            $this->assertSame(
+                ($index + 1),
+                (int) Cache::get($this->userNotificationsCountCacheKey, 0)
+            );
         }
     }
 }

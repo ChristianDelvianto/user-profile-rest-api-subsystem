@@ -18,6 +18,7 @@ return new class extends Migration
             $table->unsignedBigInteger('following_count')->default(0);
             $table->unsignedBigInteger('notifications_count')->default(0);
             $table->unsignedBigInteger('posts_count')->default(0);
+            $table->timestamp('last_read_notification_at')->useCurrent();
             $table->timestamps();
 
             // Indexes

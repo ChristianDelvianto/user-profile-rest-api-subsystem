@@ -1,8 +1,10 @@
-name: v1 Http User Follow Tests
+name: Http Test - v1 User Follow Tests
 
 on:
   pull_request:
+    branches: [main, v1/user]
   push:
+    branches: [main, v1/user]
 
 jobs:
   tests:
