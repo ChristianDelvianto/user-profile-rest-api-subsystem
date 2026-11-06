@@ -111,6 +111,24 @@ class FollowTest extends TestCase
         ->concurrency($concurrencyCount)
         ->send();
 
+        $worker = new Process([
+                    PHP_BINARY,
+                    base_path('artisan'),
+                    'queue:work',
+                    '--queue=high,default',
+                    '--stop-when-empty',
+                    '--sleep=0',
+                    '--memory=1024',
+                    '--quiet',
+                    '-v'
+                ], base_path());
+
+        $worker->setTimeout(null);
+        $worker->run();
+
+        // Ensures $worker end successfully
+        $this->assertSame(0, $worker->getExitCode(), $worker->getErrorOutput());
+
         // Ensures only 1 follower, no duplicate records
         $this->assertSame(1, $user->followers()->count());
 
