@@ -103,6 +103,22 @@ class ProfileTest extends TestCase
             });
     }
 
+    public function test_user_profile_will_have_followers_count_set_to_1_as_fallback(): void
+    {
+        $follower = User::factory()
+                    ->has(UserStat::factory(), 'stats')
+                    ->create();
+
+        $this->user->followers()->attach($follower->id);
+
+        $this->actingAs($follower, 'web')
+            ->getJson(route('api.v1.user.profile', ['user' => $this->user->username]))
+            ->assertJson(function (AssertableJson $json) {
+                $json->has('followers_count')->where('followers_count', 1)
+                    ->etc();
+            });
+    }
+
     public function test_user_profile_route_exists(): void
     {
         $this->getJson(route('api.v1.user.profile', ['user' => $this->user->username]))
