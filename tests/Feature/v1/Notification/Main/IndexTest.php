@@ -57,9 +57,14 @@ class IndexTest extends TestCase
 
     /**
      * The goal: The oldest notification become the first in order.
+     * 
+     * Note: Time travel will not work if CACHE_STORE has value 'redis',
+     * use other driver and clear app cache.
      */
     public function test_notification_will_be_ordered_by_the_latest_of_each_group(): void
     {
+        config(['cache.default' => 'array']);
+
         /**
          * The reason we put min 21 is to ensure that the oldest notification (out of first pagination page) will be in the first pagination page.
          * (We paginate the notifications by 20 items per page)
@@ -137,8 +142,14 @@ class IndexTest extends TestCase
             });
     }
 
+    /**
+     * Note: Time travel will not work if CACHE_STORE has value 'redis',
+     * use other driver and clear app cache.
+     */
     public function test_notification_will_have_value_is_read_set_to_false(): void
     {
+        config(['cache.default' => 'array']);
+
         $firstNotification = Notification::factory()
                             ->has(
                                 User::factory()
