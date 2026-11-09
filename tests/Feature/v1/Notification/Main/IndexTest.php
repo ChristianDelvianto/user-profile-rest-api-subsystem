@@ -11,6 +11,7 @@ use App\Models\UserStat;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Routing\Middleware\ThrottleRequestsWithRedis;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
@@ -56,10 +57,74 @@ class IndexTest extends TestCase
     }
 
     /**
+     * CACHE_STORE must use 'redis', otherwise this test below will not work.
+     * (Because we are using Redis SCAN)
+     */
+    public function test_notification_groups_count_cache_can_be_synchronize_successfully(): void
+    {
+        config(['cache.default' => 'redis']);
+
+        $user = User::factory()
+                ->has(UserStat::factory(), 'stats')
+                ->create();
+
+        $usersCount = 3;
+
+        $notification = Notification::factory()
+                        ->has(
+                            User::factory()
+                            ->has(UserStat::factory(), 'stats')
+                            ->count($usersCount)
+                        , 'users')
+                        ->create([
+                            'uuid' => Str::uuid()->toString(),
+                            'type' => NotificationType::AccountFollower->value,
+                            'groups_count' => 1,
+                            'user_id' => $user->id
+                        ]);
+
+        $groupsCountCacheKey = str_replace('*', $notification->uuid, config('custom.cache.notification.pattern.groups_count'));
+
+        Cache::put($groupsCountCacheKey, $usersCount, now()->addSeconds(10));
+
+        $this->assertTrue(Cache::has($groupsCountCacheKey));
+
+        // Run the cron
+        $this->artisan('notification:sync-groups-count-value')
+            ->assertExitCode(0);
+
+        // Ensures cache removed
+        $this->assertFalse(Cache::has($groupsCountCacheKey));
+
+        // Ensures grous_count value updated
+        $this->assertDatabaseHas(Notification::class, [
+            'uuid' => $notification->uuid,
+            'groups_count' => $usersCount
+        ]);
+    }
+
+    public function test_notification_route_exist(): void
+    {
+        $this->getJson(route('api.v1.notifications.index'))
+            ->assertUnauthorized();
+    }
+
+    public function test_notification_route_requires_authentication(): void
+    {
+        $this->getJson(route('api.v1.notifications.index'))
+            ->assertUnauthorized();
+    }
+
+    /**
      * The goal: The oldest notification become the first in order.
+     * 
+     * Note: Time travel will not work if CACHE_STORE has value 'redis',
+     * use other driver and clear app cache.
      */
     public function test_notification_will_be_ordered_by_the_latest_of_each_group(): void
     {
+        config(['cache.default' => 'array']);
+
         /**
          * The reason we put min 21 is to ensure that the oldest notification (out of first pagination page) will be in the first pagination page.
          * (We paginate the notifications by 20 items per page)
@@ -137,8 +202,14 @@ class IndexTest extends TestCase
             });
     }
 
+    /**
+     * Note: Time travel will not work if CACHE_STORE has value 'redis',
+     * use other driver and clear app cache.
+     */
     public function test_notification_will_have_value_is_read_set_to_false(): void
     {
+        config(['cache.default' => 'array']);
+
         $firstNotification = Notification::factory()
                             ->has(
                                 User::factory()
@@ -226,7 +297,7 @@ class IndexTest extends TestCase
             });
     }
 
-    public function test_notification_response_will_reflect_precise_groups_count(): void
+    public function test_notification_will_response_with_precise_groups_count_value(): void
     {
         $usersCount = 6;
 
@@ -275,18 +346,4 @@ class IndexTest extends TestCase
                     ->etc();
             });
     }
-
-    public function test_notification_route_exist(): void
-    {
-        $this->getJson(route('api.v1.notifications.index'))
-            ->assertUnauthorized();
-    }
-
-    public function test_notification_route_requires_authentication(): void
-    {
-        $this->getJson(route('api.v1.notifications.index'))
-            ->assertUnauthorized();
-    }
-
-    // @todo: Add more tests
 }
