@@ -16,10 +16,6 @@ use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
 /**
- * These tests below are using real HTTP requests and real database records.
- * (EACH TESTS WILL NOT DELETE PREVIOUS TEST RECORDS; IN SHORT, THIS TESTS USE PERSISTENT DATABASE AND CACHE)
- * So we have to create a new user for each tests (like in normal feature test: $this->user).
- * 
  * Before test, make sure:
  * 1. Run php artisan migrate:fresh
  * 2. Run php artisan optimize:clear & php artisan optimize
@@ -137,9 +133,7 @@ class FollowTest extends TestCase
     }
 
     /**
-     * Real-life scenario: multiple users concurrently follow the same user.
-     * 
-     * This test will send 10000 concurent http requests to a endpoint.
+     * Real-life scenario: multiple users follow the same user concurrently.
      */
     public function test_follow_from_10000_concurrent_users(): void
     {
