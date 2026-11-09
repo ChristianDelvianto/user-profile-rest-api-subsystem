@@ -16,10 +16,6 @@ use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
 /**
- * These tests below are using real HTTP requests and real database records.
- * (EACH TESTS WILL NOT DELETE PREVIOUS TEST RECORDS; IN SHORT, THIS TESTS USE PERSISTENT DATABASE AND CACHE)
- * So we have to create a new user for each tests (like in normal feature test: $this->user).
- * 
  * Before test, make sure:
  * 1. Run php artisan migrate:fresh
  * 2. Run php artisan optimize:clear & php artisan optimize
@@ -89,7 +85,7 @@ class FollowTest extends TestCase
                     ])
                     ->throw();
 
-        $this->assertEquals(200, $response->status(), 'Login failed for user id: ' . $follower->id);
+        $this->assertEquals(200, $response->status(), "Login failed for user id: {$follower->id}");
 
         // This line is mandatory, otherwise the test will throw 419 error
         $csrfCookie = $cookieJar->getCookieByName('XSRF-TOKEN');
@@ -108,16 +104,36 @@ class FollowTest extends TestCase
                     ->post("{$this->baseUrl}/api/v1/user/{$user->id}/follow");
             }
         })
+        ->concurrency($concurrencyCount)
         ->send();
+
+        $worker = new Process([
+                    PHP_BINARY,
+                    base_path('artisan'),
+                    'queue:work',
+                    '--queue=high,default',
+                    '--stop-when-empty',
+                    '--sleep=0',
+                    '--memory=1024',
+                    '--quiet',
+                    '-v'
+                ], base_path());
+
+        $worker->setTimeout(null);
+        $worker->run();
+
+        // Ensures $worker end successfully
+        $this->assertSame(0, $worker->getExitCode(), $worker->getErrorOutput());
 
         // Ensures only 1 follower, no duplicate records
         $this->assertSame(1, $user->followers()->count());
+
+        // Ensure $user only have one notification
+        $this->assertSame(1, $user->notifications()->count());
     }
 
     /**
-     * Real-life scenario: multiple users concurrently follow the same user.
-     * 
-     * This test will send 10000 concurent http requests to a endpoint.
+     * Real-life scenario: multiple users follow the same user concurrently.
      */
     public function test_follow_from_10000_concurrent_users(): void
     {
@@ -196,6 +212,7 @@ class FollowTest extends TestCase
                     ->post("{$this->baseUrl}/api/v1/user/{$user->id}/follow");
             })->all();
         })
+        ->concurrency($usersCount)
         ->send(); // FIRE!!!
 
         $worker = new Process([
@@ -220,12 +237,18 @@ class FollowTest extends TestCase
         $this->assertSame($usersCount, $user->followers()->count());
 
         // Ensures $user followers_count cache value equal with $usersCount
-        $this->assertSame($usersCount, (int) Cache::get(str_replace('*', $user->id, config('custom.cache.user_stat.pattern.followers_count')), 0));
+        $this->assertSame(
+            $usersCount,
+            (int) Cache::get(str_replace('*', $user->id, config('custom.cache.user_stat.pattern.followers_count')), 0)
+        );
 
         // Ensures $user notifications_count cache value equal with $usersCount
-        $this->assertSame($usersCount, (int) Cache::get(str_replace('*', $user->id, config('custom.cache.user_stat.pattern.notifications_count')), 0));
+        $this->assertSame(
+            $usersCount,
+            (int) Cache::get(str_replace('*', $user->id, config('custom.cache.user_stat.pattern.notifications_count')), 0)
+        );
 
-        // Ensure $user only have one notification (Because we are using queue pipeline)
+        // Ensure $user only have one notification
         $this->assertSame(1, $user->notifications()->count());
     }
 }
