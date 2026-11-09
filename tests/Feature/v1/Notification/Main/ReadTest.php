@@ -98,7 +98,7 @@ class ReadTest extends TestCase
 
         $currentTimestamp = $userStats->last_read_notification_at;
 
-        // Travel one second foward from $currentTimestamp
+        // Travel one second forward after $currentTimestamp
         $this->travelTo(Carbon::parse($currentTimestamp)->addSecond());
 
         $this->actingAs($this->user, 'web')
