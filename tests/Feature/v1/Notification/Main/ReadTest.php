@@ -43,6 +43,18 @@ class ReadTest extends TestCase
         $this->userNotificationsCountCacheKey = str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.notifications_count'));
     }
 
+    public function test_read_notification_route_exist(): void
+    {
+        $this->patchJson(route('api.v1.notifications.read'))
+            ->assertUnauthorized();
+    }
+
+    public function test_read_notification_route_requires_authentication(): void
+    {
+        $this->patchJson(route('api.v1.notifications.read'))
+            ->assertUnauthorized();
+    }
+
     public function test_read_notification_will_dispatch_queues(): void
     {
         $this->actingAs($this->user, 'web')
