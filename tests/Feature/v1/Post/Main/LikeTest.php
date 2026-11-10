@@ -345,7 +345,7 @@ class LikeTest extends TestCase
             ->assertNoContent();
     }
 
-    public function test_like_will_return_response_204_code_if_post_not_found(): void
+    public function test_like_will_return_response_404_code_if_post_not_found(): void
     {
         $nonExistsPostUuid = Str::uuid()->toString();
         
