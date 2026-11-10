@@ -18,6 +18,7 @@ use Illuminate\Routing\Middleware\ThrottleRequestsWithRedis;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 use Override;
 use Tests\TestCase;
 
@@ -334,7 +335,7 @@ class LikeTest extends TestCase
         $this->assertTrue(Cache::has($this->postLikesCountCacheKey));
     }
 
-    public function test_like_will_return_response_204_code_even_when_post_deleted(): void
+    public function test_like_will_return_response_204_code_if_post_deleted(): void
     {
         // Soft delete the post
         $this->post->delete();
@@ -342,6 +343,15 @@ class LikeTest extends TestCase
         $this->actingAs($this->otherUser, 'web')
             ->postJson(route('api.v1.post.like', ['post' => $this->post->uuid]))
             ->assertNoContent();
+    }
+
+    public function test_like_will_return_response_204_code_if_post_not_found(): void
+    {
+        $nonExistsPostUuid = Str::uuid()->toString();
+        
+        $this->actingAs($this->otherUser, 'web')
+            ->postJson(route('api.v1.post.like', ['post' => $nonExistsPostUuid]))
+            ->assertNotFound();
     }
 
     public function test_like_will_store_likes_count_to_cache(): void
