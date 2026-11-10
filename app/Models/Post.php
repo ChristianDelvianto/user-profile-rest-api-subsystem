@@ -92,7 +92,8 @@ class Post extends Model
             relatedPivotKey: 'user_id',
             parentKey: 'id',
             relatedKey: 'id',
-        );
+        )
+        ->withTimestamps();
     }
 
     /**
