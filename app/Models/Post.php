@@ -67,7 +67,9 @@ class Post extends Model
      */
     protected function casts(): array
     {
-        return [];
+        return [
+            'gallery' => 'array',
+        ];
     }
 
     /**
@@ -76,7 +78,7 @@ class Post extends Model
     public function getRouteKeyName(): string
     {
         return 'uuid';
-    }    
+    }
 
     /**
      * Get the users who liked the post.
@@ -86,8 +88,8 @@ class Post extends Model
         return $this->belongsToMany(
             related: User::class,
             table: 'post_like',
-            foreignPivotKey: 'user_id',
-            relatedPivotKey: 'post_id',
+            foreignPivotKey: 'post_id',
+            relatedPivotKey: 'user_id',
             parentKey: 'id',
             relatedKey: 'id',
         );
