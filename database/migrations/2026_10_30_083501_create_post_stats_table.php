@@ -14,15 +14,11 @@ return new class extends Migration
     {
         Schema::create('post_stats', function (Blueprint $table) {
             /**
-             * To keep this repo demo simple,
-             * I decided not to implement comments, shares, and views features.
-             * 
-             * I'm open to consultation ;)
+             * To keep this repo simple, only like feature will be implemented.
              */
             $table->foreignId('post_id')->constrained('posts', 'id')->cascadeOnDelete();
             $table->unsignedBigInteger('comments_count')->default(0);
             $table->unsignedBigInteger('likes_count')->default(0);
-            $table->unsignedBigInteger('shares_count')->default(0);
             $table->unsignedBigInteger('views_count')->default(0);
             $table->timestamps();
 
@@ -37,7 +33,6 @@ return new class extends Migration
             CHECK (
                 comments_count >= 0
                 AND likes_count >= 0
-                AND shares_count >= 0
                 AND views_count >= 0
             )'
         );
