@@ -24,11 +24,12 @@ class LikeController extends Controller
 
         try {
             // If $request->user() already like the $post, this line below will throw unique violation
-            $post->likes()->attach($request->user()->id);
+            $post->likes()->attachOrFail($request->user()->id);
 
             UpdateLikesCountCacheJob::dispatch($post, 1)->onQueue('high');
 
-            CreatePostLikeTypeOrAttachNewUserJob::dispatch($request->user(), $post)->onQueue('high');
+            // Only dispatch when liking others post
+            CreatePostLikeTypeOrAttachNewUserJob::dispatchIf($request->user()->id !== $post->user_id, $request->user(), $post)->onQueue('high');
 
             return response()->json(null, 204);
         } catch (QueryException $e) {
