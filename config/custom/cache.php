@@ -12,6 +12,7 @@ return [
          * 
          * Example usage:
          * 1. CreateAccountFollowerTypeOrAttachNewUserJob
+         * 2. CreatePostLikeTypeOrAttachNewUserJob
          */
         'last_group' => [
             'pattern' => [
@@ -37,6 +38,15 @@ return [
         ]
     ],
 
+    'post_stat' => [
+        'ttl_duration' => (60 * 60) * 24, // In seconds
+
+        'pattern' => [
+            /** Replace * with post's id */
+            'likes_count' => 'post_stat:*:likes_count',
+        ]
+    ],
+
     'user_stat' => [
         'ttl_duration' => (60 * 60) * 24, // In seconds
 
@@ -46,14 +56,11 @@ return [
          * 2. Cron
          * 3. Cache keys
          */
-        'pattern' => [
-            /** Replace * with user's id */
+        'pattern' => [ /** Replace * with user's id */
             'followers_count' => 'user_stat:*:followers_count',
 
-            /** Replace * with user's id */
             'following_count' => 'user_stat:*:following_count',
 
-            /** Replace * with user's id */
             'notifications_count' => 'user_stat:*:notifications_count',
         ]
     ]
