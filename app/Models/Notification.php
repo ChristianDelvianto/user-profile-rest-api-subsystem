@@ -43,6 +43,7 @@ class Notification extends Model
         'type',
         'groups_count',
         'data',
+        'post_id',
         'user_id',
     ];
 
@@ -66,6 +67,18 @@ class Notification extends Model
             'data' => 'array',
             'last_activity_at' => 'datetime', // For NotificationResource
         ];
+    }
+
+    /**
+     * Get the post that own the notification.
+     */
+    public function post(): BelongsTo
+    {
+        return $this->belongsTo(
+            related: Post::class,
+            foreignKey: 'post_id',
+            ownerKey: 'id',
+        );
     }
 
     /**
