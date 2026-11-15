@@ -12,7 +12,6 @@ use Exception;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class FollowController extends Controller
 {
@@ -21,29 +20,21 @@ class FollowController extends Controller
      */
     public function __invoke(FollowRequest $request, User $user): JsonResponse
     {
-        // O(1) - unique index
-        $isFollowing = $user->followers()->wherePivot('follower_id', $request->user()->id)->exists();
-
-        if ($isFollowing) {
-            return response()->json(null, 204);
-        }
-
         try {
-            DB::transaction(function () use ($request, $user): void {
-                // If $request->user() already followed $user, this line below will throw duplicate key violation
-                $user->followers()->attach($request->user()->id);
+            // If $request->user() already followed $user, this line below will throw unique violation
+            $user->followers()->attachOrFail($request->user()->id);
 
-                UpdateFollowersCountCacheJob::dispatch($user->id, 1)->onQueue('high')->afterCommit();
-                UpdateFollowingCountCacheJob::dispatch($request->user()->id, 1)->onQueue('high')->afterCommit();
+            UpdateFollowersCountCacheJob::dispatch($user->id, 1)->onQueue('high');
 
-                CreateAccountFollowerTypeOrAttachNewUserJob::dispatch($request->user(), $user)->onQueue('high')->afterCommit();
-            }, attempts: config('custom.database.transaction.attempts'));
+            UpdateFollowingCountCacheJob::dispatch($request->user()->id, 1)->onQueue('high');
+
+            CreateAccountFollowerTypeOrAttachNewUserJob::dispatch($request->user(), $user)->onQueue('high');
 
             return response()->json(null, 204);
         } catch (QueryException $e) {
             report($e);
 
-            // Duplicate key violation, $request->user() alredy followed $user
+            // Duplicate key violation, $request->user() already following $user
             if ($e->getCode() === '23505' && str_contains($e->errorInfo[2] ?? '', 'user_follow')) {
                 return response()->json(null, 204);
             }
