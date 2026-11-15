@@ -24,11 +24,11 @@ class FollowController extends Controller
             // If $request->user() already followed $user, this line below will throw unique violation
             $user->followers()->attachOrFail($request->user()->id);
 
-            UpdateFollowersCountCacheJob::dispatch($user->id, 1)->onQueue('high');
+            UpdateFollowersCountCacheJob::dispatch(user: $user, count: 1)->onQueue('high');
 
-            UpdateFollowingCountCacheJob::dispatch($request->user()->id, 1)->onQueue('high');
+            UpdateFollowingCountCacheJob::dispatch(user: $request->user(), count: 1)->onQueue('high');
 
-            CreateAccountFollowerTypeOrAttachNewUserJob::dispatch($request->user(), $user)->onQueue('high');
+            CreateAccountFollowerTypeOrAttachNewUserJob::dispatch(follower: $request->user(), user: $user)->onQueue('high');
 
             return response()->json(null, 204);
         } catch (QueryException $e) {
