@@ -22,11 +22,11 @@ class UnfollowController extends Controller
         try {
             // 0 means no record deleted; $request->user() not following $user
             if (1 === $user->followers()->detachOrFail($request->user()->id)) {
-                UpdateFollowersCountCacheJob::dispatch($user->id, -1)->onQueue('high');
+                UpdateFollowersCountCacheJob::dispatch(user: $user, count: -1)->onQueue('high');
 
-                UpdateFollowingCountCacheJob::dispatch($request->user()->id, -1)->onQueue('high');
+                UpdateFollowingCountCacheJob::dispatch(user: $request->user(), count: -1)->onQueue('high');
 
-                AccountFollowerTypeDetachUserJob::dispatch($request->user(), $user)->onQueue('high');
+                AccountFollowerTypeDetachUserJob::dispatch(follower: $request->user(), user: $user)->onQueue('high');
             }
 
             return response()->json(null, 204);
