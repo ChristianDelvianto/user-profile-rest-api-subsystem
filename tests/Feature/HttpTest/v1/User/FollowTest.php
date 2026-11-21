@@ -53,13 +53,9 @@ class FollowTest extends TestCase
     {
         $concurrencyCount = 5;
 
-        $user = User::factory()
-                ->has(UserStat::factory(), 'stats')
-                ->create();
+        $user = User::factory()->has(UserStat::factory(), 'stats')->create();
 
-        $follower = User::factory()
-                    ->has(UserStat::factory(), 'stats')
-                    ->create();
+        $follower = User::factory()->has(UserStat::factory(), 'stats')->create();
 
         $cookieJar = new CookieJar();
 
@@ -140,9 +136,7 @@ class FollowTest extends TestCase
         $usersCount = 10000; // Adjust this if we want to test more / less concurency
         $usersSessions = []; // Store sessions of authenticated users
 
-        $user = User::factory()
-                ->has(UserStat::factory(), 'stats')
-                ->create();
+        $user = User::factory()->has(UserStat::factory(), 'stats')->create();
 
         $followers = collect([]);
 
@@ -236,6 +230,9 @@ class FollowTest extends TestCase
         // Ensures $user followers count equal with $usersCount
         $this->assertSame($usersCount, $user->followers()->count());
 
+        // Ensure $user only have one notification
+        $this->assertSame(1, $user->notifications()->count());
+
         // Ensures $user followers_count cache value equal with $usersCount
         $this->assertSame(
             $usersCount,
@@ -247,8 +244,5 @@ class FollowTest extends TestCase
             $usersCount,
             (int) Cache::get(str_replace('*', $user->id, config('custom.cache.user_stat.pattern.notifications_count')), 0)
         );
-
-        // Ensure $user only have one notification
-        $this->assertSame(1, $user->notifications()->count());
     }
 }
