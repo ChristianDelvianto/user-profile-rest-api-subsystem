@@ -21,26 +21,9 @@ class CheckTest extends TestCase
     {
         parent::setUp();
 
-        $this->withHeaders([
-            'Accept' => 'application/json',
-            'Origin' => config('app.url')
-        ]);
+        $this->withHeaders(['Accept' => 'application/json', 'Origin' => config('app.url')]);
 
-        $this->user = User::factory()
-                    ->has(UserStat::factory(), 'stats')
-                    ->create();
-    }
-
-    public function test_check_response_will_return_expected_fields(): void
-    {
-        $this->actingAs($this->user, 'web')
-            ->getJson(route('api.v1.auth.check'))
-            ->assertOk()
-            ->assertJson(function (AssertableJson $json) {
-                $json->has('is_verified')
-                    ->has('profile')
-                    ->etc();
-            });
+        $this->user = User::factory()->has(UserStat::factory(), 'stats')->create();
     }
 
     public function test_check_route_exists(): void
@@ -53,5 +36,17 @@ class CheckTest extends TestCase
     {
         $this->getJson(route('api.v1.auth.check'))
             ->assertUnauthorized();
+    }
+
+    public function test_check_will_return_response_contains_expected_fields(): void
+    {
+        $this->actingAs($this->user, 'web')
+            ->getJson(route('api.v1.auth.check'))
+            ->assertOk()
+            ->assertJson(function (AssertableJson $json) {
+                $json->has('is_verified')
+                    ->has('profile')
+                    ->etc();
+            });
     }
 }
