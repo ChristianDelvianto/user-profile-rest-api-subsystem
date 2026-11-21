@@ -2,10 +2,12 @@
 
 namespace Tests\Feature\v1\Auth\Request\Signup;
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequestsWithRedis;
+use Illuminate\Support\Facades\Hash;
 use Override;
 use Tests\TestCase;
 
@@ -23,82 +25,78 @@ class PasswordTest extends TestCase
     {
         parent::setUp();
 
-        // This line is mandatory, otherwise the tests will throw 419 error
-        $this->withHeaders([
-            'Accept' => 'application/json',
-            'Origin' => config('app.url')
-        ]);
+        $this->withHeaders(['Accept' => 'application/json', 'Origin' => config('app.url')]);
 
         $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
     }
 
-    public function test_password_input_with_array_value_will_throw_422_error(): void
+    // Laravel will NOT trim the spaces
+    public function test_password_input_is_valid_although_the_value_has_spaces_at_the_beginning(): void
     {
-        $password = ['abc', 'def'];
+        $passwordWithSpacesAtTheBeginning = '   ' . $this->password;
 
         $this->postJson(route('api.v1.auth.signup'), [
                 'username' => $this->username,
                 'name' => $this->name,
                 'email' => $this->email,
-                'password' => $password,
-                'password_confirmation' => $password
+                'password' => $passwordWithSpacesAtTheBeginning,
+                'password_confirmation' => $passwordWithSpacesAtTheBeginning
             ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('password');
+            ->assertNoContent();
+
+        $user = User::firstWhere('email', $this->email);
+
+        $this->assertNotNull($user);
+
+        // Check with Hash::check
+        $this->assertTrue(Hash::check($passwordWithSpacesAtTheBeginning, $user->password));
     }
 
-    public function test_password_input_with_character_length_less_than_min_length_required_will_throw_422_error(): void
+    // Laravel will NOT trim the spaces
+    public function test_password_input_is_valid_although_the_value_has_spaces_at_the_end(): void
     {
-        $shortPassword = substr($this->password, 0, 7);
+        $passwordWithSpacesAtTheEnd = $this->password . '   ';
 
         $this->postJson(route('api.v1.auth.signup'), [
                 'username' => $this->username,
                 'name' => $this->name,
                 'email' => $this->email,
-                'password' => $shortPassword,
-                'password_confirmation' => $shortPassword
+                'password' => $passwordWithSpacesAtTheEnd,
+                'password_confirmation' => $passwordWithSpacesAtTheEnd
             ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('password');
+            ->assertNoContent();
+
+        $user = User::firstWhere('email', $this->email);
+
+        $this->assertNotNull($user);
+
+        // Check with Hash::check
+        $this->assertTrue(Hash::check($passwordWithSpacesAtTheEnd, $user->password));
     }
 
-    public function test_password_input_with_character_length_more_than_max_length_will_throw_422_error(): void
+    // Laravel will NOT trim the spaces
+    public function test_password_input_is_valid_although_the_value_has_spaces_at_the_begininng_and_the_end(): void
     {
-        $password = '';
-        $characterLength = 256;
-
-        for ($index = 0; $index < $characterLength; $index++) {
-            $password .= 'a';
-        }
+        $passwordWithSpaces = '  ' . $this->password . '   ';
 
         $this->postJson(route('api.v1.auth.signup'), [
                 'username' => $this->username,
                 'name' => $this->name,
                 'email' => $this->email,
-                'password' => $password,
-                'password_confirmation' => $password
+                'password' => $passwordWithSpaces,
+                'password_confirmation' => $passwordWithSpaces
             ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('password');
+            ->assertNoContent();
+
+        $user = User::firstWhere('email', $this->email);
+
+        $this->assertNotNull($user);
+
+        // Check with Hash::check
+        $this->assertTrue(Hash::check($passwordWithSpaces, $user->password));
     }
 
-    public function test_password_input_with_different_password_confirmation_will_throw_422_error(): void
-    {
-        $differentPassword = $this->password;
-        $differentPassword .= '1';
-
-        $this->postJson(route('api.v1.auth.signup'), [
-                'username' => $this->username,
-                'name' => $this->name,
-                'email' => $this->email,
-                'password' => $this->password,
-                'password_confirmation' => $differentPassword
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('password');
-    }
-
-    public function test_password_input_with_exact_max_character_length_will_pass(): void
+    public function test_password_input_is_valid_although_the_value_reached_max_character_length(): void
     {
         $password = '';
         $characterLength = 255;
@@ -117,7 +115,135 @@ class PasswordTest extends TestCase
             ->assertNoContent();
     }
 
-    public function test_password_input_with_image_file_value_will_throw_422_error(): void
+    public function test_password_input_is_valid_if_the_value_has_valid_password(): void
+    {
+        $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
+                'name' => $this->name,
+                'email' => $this->email,
+                'password' => $this->password,
+                'password_confirmation' => $this->password
+            ])
+            ->assertNoContent();
+    }
+
+    public function test_password_input_throws_422_error_if_main_password_value_is_an_empty_string(): void
+    {
+        $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
+                'name' => $this->name,
+                'email' => $this->email,
+                'password' => '',
+                'password_confirmation' => $this->password
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('password');
+    }
+
+    public function test_password_input_throws_422_error_if_no_key_for_main_password_input(): void
+    {
+        $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
+                'name' => $this->name,
+                'email' => $this->email,
+                'password_confirmation' => $this->password
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('password');
+    }
+
+    public function test_password_input_throws_422_error_if_no_key_for_password_confirmation_input(): void
+    {
+        $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
+                'name' => $this->name,
+                'email' => $this->email,
+                'password' => $this->password
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('password');
+    }
+
+    public function test_password_input_throws_422_error_if_password_confirmation_value_is_an_empty_string(): void
+    {
+        $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
+                'name' => $this->name,
+                'email' => $this->email,
+                'password' => $this->password,
+                'password_confirmation' => ''
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('password');
+    }
+
+    public function test_password_input_throws_422_error_if_the_value_doesnt_match_with_password_confirmation(): void
+    {
+        $differentPassword = $this->password;
+        $differentPassword .= '1';
+
+        $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
+                'name' => $this->name,
+                'email' => $this->email,
+                'password' => $this->password,
+                'password_confirmation' => $differentPassword
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('password');
+    }
+
+    public function test_password_input_throws_422_error_if_the_value_has_character_length_less_than_X(): void
+    {
+        $shortPassword = substr($this->password, 0, 7);
+
+        $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
+                'name' => $this->name,
+                'email' => $this->email,
+                'password' => $shortPassword,
+                'password_confirmation' => $this->password
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('password');
+    }
+
+    public function test_password_input_throws_422_error_if_the_value_has_character_length_more_than_255(): void
+    {
+        $password = '';
+        $characterLength = 256;
+
+        for ($index = 0; $index < $characterLength; $index++) {
+            $password .= 'a';
+        }
+
+        $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
+                'name' => $this->name,
+                'email' => $this->email,
+                'password' => $password,
+                'password_confirmation' => $this->password
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('password');
+    }
+
+    public function test_password_input_throws_422_error_if_the_value_is_an_array(): void
+    {
+        $password = ['abc', 'def'];
+
+        $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
+                'name' => $this->name,
+                'email' => $this->email,
+                'password' => $password,
+                'password_confirmation' => $this->password
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('password');
+    }
+
+    public function test_password_input_throws_422_error_if_the_value_is_a_file(): void
     {
         // GD extension required for creating fake image
         $fakeImage = UploadedFile::fake()
@@ -133,67 +259,5 @@ class PasswordTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrorFor('password');
-    }
-
-    public function test_password_input_with_no_main_password_key_will_throw_422_error(): void
-    {
-        $this->postJson(route('api.v1.auth.signup'), [
-                'username' => $this->username,
-                'name' => $this->name,
-                'email' => $this->email,
-                'password_confirmation' => $this->password
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('password');
-    }
-
-    public function test_password_input_with_no_main_password_value_will_throw_422_error(): void
-    {
-        $this->postJson(route('api.v1.auth.signup'), [
-                'username' => $this->username,
-                'name' => $this->name,
-                'email' => $this->email,
-                'password' => '',
-                'password_confirmation' => $this->password
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('password');
-    }
-
-    public function test_password_input_with_no_password_confirmation_key_will_throw_422_error(): void
-    {
-        $this->postJson(route('api.v1.auth.signup'), [
-                'username' => $this->username,
-                'name' => $this->name,
-                'email' => $this->email,
-                'password' => $this->password
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('password');
-    }
-
-    public function test_password_input_with_no_password_confirmation_value_will_throw_422_error(): void
-    {
-        $this->postJson(route('api.v1.auth.signup'), [
-                'username' => $this->username,
-                'name' => $this->name,
-                'email' => $this->email,
-                'password' => $this->password,
-                'password_confirmation' => ''
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('password');
-    }
-
-    public function test_password_input_with_valid_password_will_pass(): void
-    {
-        $this->postJson(route('api.v1.auth.signup'), [
-                'username' => $this->username,
-                'name' => $this->name,
-                'email' => $this->email,
-                'password' => $this->password,
-                'password_confirmation' => $this->password
-            ])
-            ->assertNoContent();
     }
 }
