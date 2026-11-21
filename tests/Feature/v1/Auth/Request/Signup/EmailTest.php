@@ -14,6 +14,7 @@ class EmailTest extends TestCase
 {
     use RefreshDatabase, WithFaker;
 
+    protected string $email = 'test_user@example.com';
     protected string $name = 'Test User';
     protected string $password = 'password';
     protected string $username = 'test_user';
@@ -23,100 +24,80 @@ class EmailTest extends TestCase
     {
         parent::setUp();
 
-        // This line is mandatory, otherwise the tests will throw 419 error
-        $this->withHeaders([
-            'Accept' => 'application/json',
-            'Origin' => config('app.url')
-        ]);
+        $this->withHeaders(['Accept' => 'application/json', 'Origin' => config('app.url')]);
 
         $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
     }
 
-    public function test_email_input_must_be_unique(): void
+    // Laravel will trim the spaces
+    public function test_email_input_is_valid_although_the_value_has_spaces_at_the_beginning(): void
     {
-        $user = User::factory()->create();
+        $email = '  ' . $this->email;
 
         $this->postJson(route('api.v1.auth.signup'), [
                 'username' => $this->username,
                 'name' => $this->name,
-                'email' => $user->email,
+                'email' => $email,
                 'password' => $this->password,
                 'password_confirmation' => $this->password
             ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('email');
+            ->assertNoContent();
+
+        $this->assertDatabaseMissing(User::class, ['email' => $email])
+            ->assertDatabaseHas(User::class, ['email' => trim($email)]);
     }
 
-    public function test_email_input_with_array_value_will_throw_422_error(): void
+    // Laravel will trim the spaces
+    public function test_email_input_is_valid_although_the_value_has_spaces_at_the_end(): void
     {
-        $this->postJson(route('api.v1.auth.signup'), [
-                'username' => $this->username,
-                'name' => $this->name,
-                'email' => ['abc', 'def'],
-                'password' => $this->password,
-                'password_confirmation' => $this->password
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('email');
-    }
-
-    public function test_email_input_with_image_file_value_will_throw_422_error(): void
-    {
-        // GD extension required for creating fake image
-        $fakeImage = UploadedFile::fake()
-            ->image('test_image.jpg')
-            ->size(1024);
+        $email = $this->email . '  ';
 
         $this->postJson(route('api.v1.auth.signup'), [
                 'username' => $this->username,
                 'name' => $this->name,
-                'email' => $fakeImage,
+                'email' => $email,
                 'password' => $this->password,
                 'password_confirmation' => $this->password
             ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('email');
+            ->assertNoContent();
+
+        $this->assertDatabaseMissing(User::class, ['email' => $email])
+            ->assertDatabaseHas(User::class, ['email' => trim($email)]);
     }
 
-    public function test_email_input_with_no_key_will_throw_422_error(): void
+    // Laravel will trim the spaces
+    public function test_email_input_is_valid_although_the_value_has_spaces_at_the_begininng_and_the_end(): void
+    {
+        $email = '  ' . $this->email . '  ';
+
+        $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
+                'name' => $this->name,
+                'email' => $email,
+                'password' => $this->password,
+                'password_confirmation' => $this->password
+            ])
+            ->assertNoContent();
+
+        $this->assertDatabaseMissing(User::class, ['email' => $email])
+            ->assertDatabaseHas(User::class, ['email' => trim($email)]);
+    }
+
+    public function test_email_input_is_valid_if_the_value_is_a_valid_email(): void
     {
         $this->postJson(route('api.v1.auth.signup'), [
                 'username' => $this->username,
                 'name' => $this->name,
+                'email' => $this->email,
                 'password' => $this->password,
                 'password_confirmation' => $this->password
             ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('email');
+            ->assertNoContent();
+
+        $this->assertDatabaseHas(User::class, ['email' => $this->email]);
     }
 
-    public function test_email_input_with_no_value_will_throw_422_error(): void
-    {
-        $this->postJson(route('api.v1.auth.signup'), [
-                'username' => $this->username,
-                'name' => $this->name,
-                'email' => '',
-                'password' => $this->password,
-                'password_confirmation' => $this->password
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('email');
-    }
-
-    public function test_email_input_with_plain_string_will_throw_422_error(): void
-    {
-        $this->postJson(route('api.v1.auth.signup'), [
-                'username' => $this->username,
-                'name' => $this->name,
-                'email' => 'abcde',
-                'password' => $this->password,
-                'password_confirmation' => $this->password
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('email');
-    }
-
-    public function test_email_input_with_valid_email_and_has_max_character_length_will_pass(): void
+    public function test_email_input_is_valid_if_the_value_is_a_valid_email_although_with_max_character_length(): void
     {
         $limit = 255;
         $email = '';
@@ -143,7 +124,44 @@ class EmailTest extends TestCase
         $this->assertDatabaseHas(User::class, ['email' => $email]);
     }
 
-    public function test_email_input_with_valid_email_but_has_more_than_255_character_length_will_throw_422_error(): void
+    public function test_email_input_must_be_unique(): void
+    {
+        $user = User::factory()->create();
+
+        $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
+                'name' => $this->name,
+                'email' => $user->email,
+                'password' => $this->password,
+                'password_confirmation' => $this->password
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('email');
+
+        // The uppercase version will pass (Unless we set specific rules)
+        $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
+                'name' => $this->name,
+                'email' => strtoupper($user->email),
+                'password' => $this->password,
+                'password_confirmation' => $this->password
+            ])
+            ->assertNoContent();
+    }
+
+    public function test_email_input_throws_422_error_if_no_key_for_the_input(): void
+    {
+        $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
+                'name' => $this->name,
+                'password' => $this->password,
+                'password_confirmation' => $this->password
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('email');
+    }
+
+    public function test_email_input_throws_422_error_if_the_value_has_character_length_more_than_255(): void
     {
         $email = '';
         $characterLength = 256;
@@ -165,19 +183,58 @@ class EmailTest extends TestCase
             ->assertJsonValidationErrorFor('email');
     }
 
-    public function test_email_input_with_valid_email_will_pass(): void
+    public function test_email_input_throws_422_error_if_the_value_is_an_array(): void
     {
-        $email = fake()->email();
+        $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
+                'name' => $this->name,
+                'email' => ['abc', 'def'],
+                'password' => $this->password,
+                'password_confirmation' => $this->password
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('email');
+    }
+
+    public function test_email_input_throws_422_error_if_the_value_is_an_empty_string(): void
+    {
+        $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
+                'name' => $this->name,
+                'email' => '',
+                'password' => $this->password,
+                'password_confirmation' => $this->password
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('email');
+    }
+
+    public function test_email_input_throws_422_error_if_the_value_is_a_file(): void
+    {
+        // GD extension required for creating fake image
+        $fakeImage = UploadedFile::fake()->image('test_image.jpg')->size(1024);
 
         $this->postJson(route('api.v1.auth.signup'), [
                 'username' => $this->username,
                 'name' => $this->name,
-                'email' => $email,
+                'email' => $fakeImage,
                 'password' => $this->password,
                 'password_confirmation' => $this->password
             ])
-            ->assertNoContent();
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('email');
+    }
 
-        $this->assertDatabaseHas(User::class, ['email' => $email]);
+    public function test_email_input_throws_422_error_if_the_value_is_a_plain_string(): void
+    {
+        $this->postJson(route('api.v1.auth.signup'), [
+                'username' => $this->username,
+                'name' => $this->name,
+                'email' => 'abcde',
+                'password' => $this->password,
+                'password_confirmation' => $this->password
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('email');
     }
 }
