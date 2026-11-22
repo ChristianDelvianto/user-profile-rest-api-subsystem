@@ -16,14 +16,13 @@ class ReadController extends Controller
      */
     public function __invoke(Request $request): JsonResponse
     {
-        UpdateLastReadNotificationJob::dispatch($request->user(), Carbon::now())
-            ->onQueue('high');
+        UpdateLastReadNotificationJob::dispatch(user: $request->user(), timestamp: Carbon::now())->onQueue('high');
 
         // Set user's notifications_count cache to 0
         Cache::put(
-            str_replace('*', $request->user()->id, config('custom.cache.user_stat.pattern.notifications_count')),
-            0,
-            config('custom.cache.user_stat.ttl_duration')
+            key: str_replace('*', $request->user()->id, config('custom.cache.user_stat.pattern.notifications_count')),
+            value: 0,
+            ttl: config('custom.cache.user_stat.ttl_duration')
         );
 
         return response()->json(null, 204);
