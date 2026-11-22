@@ -32,17 +32,11 @@ class IndexTest extends TestCase
 
         Queue::fake();
 
-        // This line is mandatory, otherwise the tests will throw 419 error
-        $this->withHeaders([
-            'Accept' => 'application/json',
-            'Origin' => config('app.url')
-        ]);
+        $this->withHeaders(['Accept' => 'application/json', 'Origin' => config('app.url')]);
 
         $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
 
-        $this->user = User::factory()
-                    ->has(UserStat::factory(), 'stats')
-                    ->create();
+        $this->user = User::factory()->has(UserStat::factory(), 'stats')->create();
     }
 
     public function test_can_fetch_notifications_successfully(): void
@@ -64,17 +58,13 @@ class IndexTest extends TestCase
     {
         config(['cache.default' => 'redis']);
 
-        $user = User::factory()
-                ->has(UserStat::factory(), 'stats')
-                ->create();
+        $user = User::factory()->has(UserStat::factory(), 'stats')->create();
 
         $usersCount = 3;
 
         $notification = Notification::factory()
                         ->has(
-                            User::factory()
-                            ->has(UserStat::factory(), 'stats')
-                            ->count($usersCount)
+                            User::factory()->has(UserStat::factory(), 'stats')->count($usersCount)
                         , 'users')
                         ->create([
                             'uuid' => Str::uuid()->toString(),
@@ -150,16 +140,16 @@ class IndexTest extends TestCase
                 // so we can clearly see if users in the same notification group will be ordered by the latest user (from notification_user.created_at column)
                 $this->travel(rand(1, 30))->seconds();
 
-                $user = User::factory()
-                        ->has(UserStat::factory(), 'stats')
-                        ->create();
+                $user = User::factory()->has(UserStat::factory(), 'stats')->create();
 
                 $notification->users()->attach($user->id);
             }
         }
 
+        // Store the latest notification into a variable, so we can compare later
         $latestNotification = $this->user->notifications()->latest()->first();
 
+        // Store the oldest notification into a variable, so we can compare later
         $oldestNotification = $this->user->notifications()->oldest()->first();
 
         $response = $this->actingAs($this->user, 'web')
@@ -212,8 +202,7 @@ class IndexTest extends TestCase
 
         $firstNotification = Notification::factory()
                             ->has(
-                                User::factory()
-                                    ->has(UserStat::factory(), 'stats')
+                                User::factory()->has(UserStat::factory(), 'stats')
                             , 'users')
                             ->create([
                                 'uuid' => Str::uuid()->toString(),
@@ -232,8 +221,7 @@ class IndexTest extends TestCase
 
         $secondNotification = Notification::factory()
                             ->has(
-                                User::factory()
-                                    ->has(UserStat::factory(), 'stats')
+                                User::factory()->has(UserStat::factory(), 'stats')
                             , 'users')
                             ->create([
                                 'uuid' => Str::uuid()->toString(),
@@ -252,10 +240,10 @@ class IndexTest extends TestCase
 
         $notifications = collect($response->json('items'));
 
-        // Ensures $firstNotification has 'is_read' set to true
+        // Ensures $firstNotification has 'is_read' value set to true
         $this->assertTrue($notifications->where('uuid', '=', $firstNotification->uuid)->first()['is_read']);
 
-        // Ensures $secondNotification has 'is_read' set to false
+        // Ensures $secondNotification has 'is_read' value set to false
         $this->assertFalse($notifications->where('uuid', '=', $secondNotification->uuid)->first()['is_read']);
     }
 
@@ -264,8 +252,7 @@ class IndexTest extends TestCase
         // Create a notification to check its json keys
         Notification::factory()
                     ->has(
-                        User::factory()
-                            ->has(UserStat::factory(), 'stats')
+                        User::factory()->has(UserStat::factory(), 'stats')
                     , 'users')
                     ->create([
                         'uuid' => Str::uuid()->toString(),
