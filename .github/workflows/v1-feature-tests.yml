@@ -2,9 +2,9 @@ name: v1 Feature Tests
 
 on:
   pull_request:
-    branches: [main]
+    branches: []
   push:
-    branches: [main]
+    branches: []
 
 jobs:
   tests:
@@ -42,7 +42,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.5'
           extensions: mbstring, pdo_pgsql
           coverage: xdebug
 
