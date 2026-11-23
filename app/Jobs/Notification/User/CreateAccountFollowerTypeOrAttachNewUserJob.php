@@ -49,6 +49,7 @@ class CreateAccountFollowerTypeOrAttachNewUserJob implements ShouldQueue
     public function handle(): void
     {
         $cacheDuration = config('custom.cache.notification.ttl_duration');
+
         $cacheKey = str_replace('*', $this->user->id, config('custom.cache.notification.last_group.pattern.account_follower'));
 
         $notification = Cache::remember($cacheKey, $cacheDuration, function (): ?Notification {
@@ -62,23 +63,23 @@ class CreateAccountFollowerTypeOrAttachNewUserJob implements ShouldQueue
                         });
 
         if ($notification && Carbon::parse($notification->created_at)->diffInMinutes(now(), true) < config('custom.notification.group_gap_interval')) {
-            UpdateGroupsCountCacheJob::dispatch($notification->uuid, 1)->onQueue('high');
+            $notification->users()->attachOrFail($this->follower->id);
 
-            $notification->users()->attach($this->follower->id);
+            UpdateGroupsCountCacheJob::dispatch(notification: $notification, count: 1)->onQueue('high');
         } else {
             // Wrap in transaction
             $notification = DB::transaction(function (): Notification {
                                 $notification = Notification::create([
-                                    'uuid' => Str::uuid()->toString(),
-                                    'type' => NotificationType::AccountFollower->value,
-                                    'groups_count' => 1,
-                                    'user_id' => $this->user->id
-                                ]);
+                                                    'uuid' => Str::uuid()->toString(),
+                                                    'type' => NotificationType::AccountFollower->value,
+                                                    'groups_count' => 1,
+                                                    'user_id' => $this->user->id
+                                                ]);
 
                                 $notification->users()->attach($this->follower->id);
 
                                 return $notification;
-                            }, attempts: config('custom.database.transaction.attempts'));
+                            });
 
             /**
              * Store the notification to cache
@@ -86,6 +87,6 @@ class CreateAccountFollowerTypeOrAttachNewUserJob implements ShouldQueue
             Cache::put($cacheKey, $notification, $cacheDuration);
         }
 
-        UpdateNotificationsCountCacheJob::dispatch($this->user->id, 1)->onQueue('high');
+        UpdateNotificationsCountCacheJob::dispatch(userId: $this->user->id, count: 1)->onQueue('high');
     }
 }

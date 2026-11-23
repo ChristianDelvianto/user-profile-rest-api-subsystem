@@ -18,7 +18,7 @@ class UpdateGroupsCountCacheJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        public string $uuid,
+        public Notification $notification,
         public int $count
     ) {
         //
@@ -32,7 +32,7 @@ class UpdateGroupsCountCacheJob implements ShouldQueue
     public function middleware(): array
     {
         return [
-            (new WithoutOverlapping("lock:notification:{$this->uuid}:groups_count"))
+            (new WithoutOverlapping("lock:notification:{$this->notification->uuid}:groups_count"))
                 ->releaseAfter(60)
                 ->expireAfter(240)
         ];
@@ -43,13 +43,17 @@ class UpdateGroupsCountCacheJob implements ShouldQueue
      */
     public function handle(): void
     {
-        $cacheKey = str_replace('*', $this->uuid, config('custom.cache.notification.pattern.groups_count'));
+        $cacheKey = str_replace('*', $this->notification->uuid, config('custom.cache.notification.pattern.groups_count'));
 
         $cachedCount = Cache::get($cacheKey, null);
 
         if (is_null($cachedCount)) { // No cached value, get from database
             // Use DB as source of truth
-            $notification = Notification::where('uuid', $this->uuid)->firstOrFail();
+            $notification = Notification::where('uuid', '=', $this->notification->uuid)->first();
+
+            if (is_null($notification)) { // Deleted by cron / scheduler
+                return;
+            }
 
             $cachedCount = $notification->groups_count;
         }

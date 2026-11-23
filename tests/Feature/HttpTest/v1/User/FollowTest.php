@@ -53,13 +53,9 @@ class FollowTest extends TestCase
     {
         $concurrencyCount = 5;
 
-        $user = User::factory()
-                ->has(UserStat::factory(), 'stats')
-                ->create();
+        $user = User::factory()->has(UserStat::factory(), 'stats')->create();
 
-        $follower = User::factory()
-                    ->has(UserStat::factory(), 'stats')
-                    ->create();
+        $follower = User::factory()->has(UserStat::factory(), 'stats')->create();
 
         $cookieJar = new CookieJar();
 
@@ -140,9 +136,7 @@ class FollowTest extends TestCase
         $usersCount = 10000; // Adjust this if we want to test more / less concurency
         $usersSessions = []; // Store sessions of authenticated users
 
-        $user = User::factory()
-                ->has(UserStat::factory(), 'stats')
-                ->create();
+        $user = User::factory()->has(UserStat::factory(), 'stats')->create();
 
         $followers = collect([]);
 

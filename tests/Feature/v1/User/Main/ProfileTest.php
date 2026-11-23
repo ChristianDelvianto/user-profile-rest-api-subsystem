@@ -22,17 +22,11 @@ class ProfileTest extends TestCase
     {
         parent::setUp();
 
-        // This line is mandatory, otherwise the tests will throw 419 error
-        $this->withHeaders([
-            'Accept' => 'application/json',
-            'Origin' => config('app.url')
-        ]);
+        $this->withHeaders(['Accept' => 'application/json', 'Origin' => config('app.url')]);
 
         $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
 
-        $this->user = User::factory()
-                    ->has(UserStat::factory(), 'stats')
-                    ->create();
+        $this->user = User::factory()->has(UserStat::factory(), 'stats')->create();
     }
 
     public function test_user_profile_can_be_fetch_successfully(): void
@@ -58,7 +52,19 @@ class ProfileTest extends TestCase
             });
     }
 
-    public function test_user_profile_response_contains_expected_fields(): void
+    public function test_user_profile_route_exists(): void
+    {
+        $this->getJson(route('api.v1.user.profile', ['user' => $this->user->username]))
+            ->assertOk();
+    }
+
+    public function test_user_profile_throws_404_error_if_user_not_found(): void
+    {
+        $this->getJson(route('api.v1.user.profile', ['user' => 'no_user']))
+            ->assertNotFound();
+    }
+
+    public function test_user_profile_will_return_response_contains_expected_fields(): void
     {
         $this->getJson(route('api.v1.user.profile', ['user' => $this->user->username]))
             ->assertOk()
@@ -76,7 +82,7 @@ class ProfileTest extends TestCase
             });
     }
 
-    public function test_user_profile_response_have_is_followed_set_to_true_if_user_followed(): void
+    public function test_user_profile_will_return_response_with_is_followed_set_to_true_if_user_followed(): void
     {
         $follower = User::factory()
                     ->has(UserStat::factory(), 'stats')
@@ -93,7 +99,7 @@ class ProfileTest extends TestCase
             });
     }
 
-    public function test_user_profile_will_have_is_followed_key_set_to_false_for_guest(): void
+    public function test_user_profile_will_return_response_with_is_followed_key_set_to_false_for_guest(): void
     {
         $this->getJson(route('api.v1.user.profile', ['user' => $this->user->username]))
             ->assertOk()
@@ -103,11 +109,9 @@ class ProfileTest extends TestCase
             });
     }
 
-    public function test_user_profile_will_have_followers_count_set_to_1_as_fallback(): void
+    public function test_user_profile_will_return_response_with_followers_count_set_to_1_as_fallback_if_user_followed(): void
     {
-        $follower = User::factory()
-                    ->has(UserStat::factory(), 'stats')
-                    ->create();
+        $follower = User::factory()->has(UserStat::factory(), 'stats')->create();
 
         $this->user->followers()->attach($follower->id);
 
@@ -118,18 +122,4 @@ class ProfileTest extends TestCase
                     ->etc();
             });
     }
-
-    public function test_user_profile_route_exists(): void
-    {
-        $this->getJson(route('api.v1.user.profile', ['user' => $this->user->username]))
-            ->assertOk();
-    }
-
-    public function test_user_profile_route_for_non_existed_user_will_throw_404_error(): void
-    {
-        $this->getJson(route('api.v1.user.profile', ['user' => 'no_user']))
-            ->assertNotFound();
-    }
-
-    // @todo: Add more tests
 }

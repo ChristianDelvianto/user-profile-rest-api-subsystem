@@ -11,7 +11,6 @@ use App\Models\User;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class UnfollowController extends Controller
 {
@@ -20,25 +19,15 @@ class UnfollowController extends Controller
      */
     public function __invoke(UnfollowRequest $request, User $user): JsonResponse
     {
-        // O(1) - unique index
-        $isFollowing = $user->followers()->wherePivot('follower_id', $request->user()->id)->exists();
-
-        if (! $isFollowing) {
-            return response()->json(null, 204);
-        }
-
         try {
-            DB::transaction(function () use ($request, $user): void {
-                // 0 means no record deleted; $request->user() not following $user
-                if (0 === $user->followers()->detach($request->user()->id)) {
-                    return;
-                }
+            // 0 means no record deleted; $request->user() not following $user
+            if (1 === $user->followers()->detachOrFail($request->user()->id)) {
+                UpdateFollowersCountCacheJob::dispatch(user: $user, count: -1)->onQueue('high');
 
-                UpdateFollowersCountCacheJob::dispatch($user->id, -1)->onQueue('high')->afterCommit();
-                UpdateFollowingCountCacheJob::dispatch($request->user()->id, -1)->onQueue('high')->afterCommit();
+                UpdateFollowingCountCacheJob::dispatch(user: $request->user(), count: -1)->onQueue('high');
 
-                AccountFollowerTypeDetachUserJob::dispatch($request->user(), $user)->onQueue('high')->afterCommit();
-            }, attempts: config('custom.database.transaction.attempts'));
+                AccountFollowerTypeDetachUserJob::dispatch(follower: $request->user(), user: $user)->onQueue('high');
+            }
 
             return response()->json(null, 204);
         } catch (Exception $e) {

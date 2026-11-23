@@ -2,6 +2,7 @@
 
 namespace App\Jobs\UserStat;
 
+use App\Models\User;
 use App\Models\UserStat;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -18,7 +19,7 @@ class UpdateFollowingCountCacheJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        public int $userId,
+        public User $user,
         public int $count
     ) {
         //
@@ -32,7 +33,7 @@ class UpdateFollowingCountCacheJob implements ShouldQueue
     public function middleware(): array
     {
         return [
-            (new WithoutOverlapping("lock:user_stat:{$this->userId}:following_count"))
+            (new WithoutOverlapping("lock:user_stat:{$this->user->id}:following_count"))
                 ->releaseAfter(60)
                 ->expireAfter(240)
         ];
@@ -43,13 +44,13 @@ class UpdateFollowingCountCacheJob implements ShouldQueue
      */
     public function handle(): void
     {
-        $cacheKey = str_replace('*', $this->userId, config('custom.cache.user_stat.pattern.following_count'));
+        $cacheKey = str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.following_count'));
         
         $cachedCount = Cache::get($cacheKey, null);
 
         if (is_null($cachedCount)) { // No cached value, get from database
             // Use DB as source of truth
-            $userStats = UserStat::where('user_id', $this->userId)->firstOrFail();
+            $userStats = UserStat::where('user_id', $this->user->id)->firstOrFail();
 
             $cachedCount = $userStats->following_count;
         }
