@@ -4,7 +4,7 @@ namespace App\Http\Controllers\v1\Post;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\Notification\Post\CreatePostLikeTypeOrAttachNewUserJob;
-use App\Jobs\Post\UpdateLikesCountCacheJob;
+use App\Jobs\PostStat\UpdateLikesCountCacheJob;
 use App\Models\Post;
 use Exception;
 use Illuminate\Database\QueryException;
