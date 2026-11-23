@@ -28,17 +28,11 @@ class ReadTest extends TestCase
 
         Queue::fake();
 
-        // This line is mandatory, otherwise the tests will throw 419 error
-        $this->withHeaders([
-            'Accept' => 'application/json',
-            'Origin' => config('app.url')
-        ]);
+        $this->withHeaders(['Accept' => 'application/json', 'Origin' => config('app.url')]);
 
         $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
 
-        $this->user = User::factory()
-                    ->has(UserStat::factory(), 'stats')
-                    ->create();
+        $this->user = User::factory()->has(UserStat::factory(), 'stats')->create();
 
         $this->userNotificationsCountCacheKey = str_replace('*', $this->user->id, config('custom.cache.user_stat.pattern.notifications_count'));
     }
@@ -66,7 +60,7 @@ class ReadTest extends TestCase
         });
     }
 
-    public function test_read_notification_will_set_user_notifications_count_to_0(): void
+    public function test_read_notification_will_set_user_notifications_count_cache_to_0(): void
     {
         Cache::put($this->userNotificationsCountCacheKey, 10, now()->addSeconds(5));
 
@@ -76,7 +70,7 @@ class ReadTest extends TestCase
 
         $this->assertTrue(Cache::has($this->userNotificationsCountCacheKey));
 
-        $this->assertSame(0, (int) Cache::get($this->userNotificationsCountCacheKey));
+        $this->assertSame(0, Cache::get($this->userNotificationsCountCacheKey, null));
     }
 
     public function test_read_notification_will_not_update_user_stat_last_read_notification_at_if_the_request_timestamp_equal_or_older(): void
@@ -95,7 +89,7 @@ class ReadTest extends TestCase
         $job = Queue::pushed(UpdateLastReadNotificationJob::class)->last();
 
         $this->assertNotNull($job);
-        $this->assertTrue($job->timestamp->lt($currentTimestamp));
+        $this->assertTrue($job->timestamp->lt($currentTimestamp)); // Ensures job $timestamp less than $currentTimestamp
 
         $job->handle();
 
@@ -120,7 +114,7 @@ class ReadTest extends TestCase
         $job = Queue::pushed(UpdateLastReadNotificationJob::class)->last();
 
         $this->assertNotNull($job);
-        $this->assertTrue($job->timestamp->gt($currentTimestamp));
+        $this->assertTrue($job->timestamp->gt($currentTimestamp)); // Ensures job $timestamp greater than $currentTimestamp
 
         $job->handle();
 
