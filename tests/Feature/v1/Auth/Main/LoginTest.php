@@ -24,43 +24,33 @@ class LoginTest extends TestCase
     {
         parent::setUp();
 
-        // This line is mandatory, otherwise the tests will throw 419 error
-        $this->withHeaders([
-            'Accept' => 'application/json',
-            'Origin' => config('app.url')
-        ]);
+        $this->withHeaders(['Accept' => 'application/json', 'Origin' => config('app.url')]);
 
-        $this->user = User::factory()
-                    ->has(UserStat::factory(), 'stats')
-                    ->create();
+        $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
+
+        $this->user = User::factory()->has(UserStat::factory(), 'stats')->create();
     }
 
     public function test_can_login_successfully(): void
     {
-        $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
-
         $this->postJson(route('api.v1.auth.login'), [
                 'email' => $this->user->email,
                 'password' => $this->password
             ])
             ->assertOk();
 
-        $this->assertAuthenticated('web')
-            ->assertAuthenticatedAs($this->user);
+        $this->assertAuthenticatedAs($this->user, 'web');
     }
 
     public function test_can_relogin_successfully(): void
     {
-        $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
-
         $this->postJson(route('api.v1.auth.login'), [
                 'email' => $this->user->email,
                 'password' => $this->password
             ])
             ->assertOk();
 
-        $this->assertAuthenticated('web')
-            ->assertAuthenticatedAs($this->user);
+        $this->assertAuthenticatedAs($this->user, 'web');
 
         $this->postJson(route('api.v1.auth.logout'))
             ->assertNoContent();
@@ -68,9 +58,7 @@ class LoginTest extends TestCase
         $this->assertGuest('web');
 
         // Create different user
-        $user = User::factory()
-                ->has(UserStat::factory(), 'stats')
-                ->create();
+        $user = User::factory()->has(UserStat::factory(), 'stats')->create();
 
         // Relogin with different user
         $this->postJson(route('api.v1.auth.login'), [
@@ -79,17 +67,18 @@ class LoginTest extends TestCase
             ])
             ->assertOk();
 
-        $this->assertAuthenticated('web')
-            ->assertAuthenticatedAs($user);
+        $this->assertAuthenticatedAs($user, 'web');
     }
 
-    public function test_login_as_authenticated_user_will_throw_403_error(): void
+    public function test_login_route_exists(): void
     {
-        $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
+        $this->postJson(route('api.v1.auth.login'))
+            ->assertUnprocessable();
+    }
 
-        $user = User::factory()
-                ->has(UserStat::factory(), 'stats')
-                ->create();
+    public function test_login_throws_403_error_if_the_request_sent_by_authenticated_user(): void
+    {
+        $user = User::factory()->has(UserStat::factory(), 'stats')->create();
 
         $this->actingAs($this->user, 'web')
             ->postJson(route('api.v1.auth.login'), [
@@ -101,8 +90,11 @@ class LoginTest extends TestCase
         $this->assertAuthenticatedAs($this->user, 'web');
     }
 
-    public function test_login_attempts_more_than_X_times_will_trigger_throttle_guard(): void
+    public function test_login_will_trigger_throttle_guard_if_attempts_more_than_X_times(): void
     {
+        // We will enable throttleWithRedis for this test
+        $this->withMiddleware(ThrottleRequestsWithRedis::class);
+
         $maxAttempts = config('custom.throttle.api.v1.login.max_attempts');
 
         $loginLimiter = app(LoginRateLimiter::class);
@@ -113,18 +105,14 @@ class LoginTest extends TestCase
             // Attempts to login 10 times
             for ($index = 0; $index < 10; $index++) {
                 if ($index < $maxAttempts) {
-                    $this->withServerVariables([
-                            'REMOTE_ADDR' => $requestIp
-                        ])
+                    $this->withServerVariables(['REMOTE_ADDR' => $requestIp])
                         ->postJson(route('api.v1.auth.login'), [
                             'email' => $this->user->email,
                             'password' => 'invalid_password'
                         ])
                         ->assertUnprocessable();
                 } else {
-                    $this->withServerVariables([
-                            'REMOTE_ADDR' => $requestIp
-                        ])
+                    $this->withServerVariables(['REMOTE_ADDR' => $requestIp])
                         ->postJson(route('api.v1.auth.login'), [
                             'email' => $this->user->email,
                             'password' => 'invalid_password'
@@ -144,15 +132,7 @@ class LoginTest extends TestCase
         $this->assertFalse($loginLimiter->isBlocked($requestIp, $this->user->email));
     }
 
-    public function test_login_route_exists(): void
-    {
-        $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
-
-        $this->postJson(route('api.v1.auth.login'))
-            ->assertUnprocessable();
-    }
-
-    public function test_login_successfully_will_return_response_contains_expected_fields(): void
+    public function test_login_will_return_response_contains_expected_fields(): void
     {
         $this->postJson(route('api.v1.auth.login'), [
                 'email' => $this->user->email,
@@ -166,8 +146,11 @@ class LoginTest extends TestCase
             });
     }
 
-    public function test_login_with_different_ip_will_authenticate(): void
+    public function test_login_will_authenticate_if_use_different_ip(): void
     {
+        // We will enable throttleWithRedis for this test
+        $this->withMiddleware(ThrottleRequestsWithRedis::class);
+
         $maxAttempts = config('custom.throttle.api.v1.login.max_attempts');
 
         $loginLimiter = app(LoginRateLimiter::class);
@@ -180,15 +163,11 @@ class LoginTest extends TestCase
         // Attempts to login 10 times
         for ($index = 0; $index < 10; $index++) {
             if ($index < $maxAttempts) {
-                $this->withServerVariables([
-                        'REMOTE_ADDR' => $requestIp1
-                    ])
+                $this->withServerVariables(['REMOTE_ADDR' => $requestIp1])
                     ->postJson(route('api.v1.auth.login'), $formData)
                     ->assertUnprocessable();
             } else {
-                $this->withServerVariables([
-                        'REMOTE_ADDR' => $requestIp1
-                    ])
+                $this->withServerVariables(['REMOTE_ADDR' => $requestIp1])
                     ->postJson(route('api.v1.auth.login'), $formData)
                     ->assertTooManyRequests();
             }
@@ -198,16 +177,14 @@ class LoginTest extends TestCase
         $this->assertTrue($loginLimiter->isBlocked($requestIp1, $this->user->email));
 
         // Login with different IP
-        $this->withServerVariables([
-                'REMOTE_ADDR' => $requestIp2
-            ])
+        $this->withServerVariables(['REMOTE_ADDR' => $requestIp2])
             ->postJson(route('api.v1.auth.login'), [
                 'email' => $this->user->email,
                 'password' => $this->password
             ])
             ->assertOk();
 
-        $this->assertAuthenticatedAs($this->user);
+        $this->assertAuthenticatedAs($this->user, 'web');
 
         // Clear the throttle, so other tests will not throw 429 error
         $loginLimiter->clear($requestIp1, $this->user->email);
