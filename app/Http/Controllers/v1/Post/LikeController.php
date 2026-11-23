@@ -20,35 +20,35 @@ class LikeController extends Controller
     {
         // @todo: explain why we return success response when post deleted
         if ($post->trashed()) {
-            return response()->json(data: null, status: 204);
+            return response()->json(null, 204);
         }
 
         try {
             // If $request->user() already like the $post, this line below will throw unique violation
-            $post->likes()->attachOrFail(ids: $request->user()->id);
+            $post->likes()->attachOrFail($request->user()->id);
 
-            UpdateLikesCountCacheJob::dispatch(post: $post, count: 1)->onQueue(queue: 'high');
+            UpdateLikesCountCacheJob::dispatch(post: $post, count: 1)->onQueue('high');
 
             // Only dispatch when $request->user() does not own the $post
             CreatePostLikeTypeOrAttachNewUserJob::dispatchIf(
-                boolean: $request->user()->id !== $post->user_id,
-                user: $request->user(),
-                post: $post
-            )
-            ->onQueue(queue: 'high');
+                                                    boolean: $request->user()->id !== $post->user_id,
+                                                    user: $request->user(),
+                                                    post: $post
+                                                )
+                                                ->onQueue('high');
 
-            return response()->json(data: null, status: 204);
+            return response()->json(null, 204);
         } catch (QueryException $e) {
-            report(exception: $e);
+            report($e);
 
             // $request->user() already liked the $post
-            if ($e->getCode() === '23505' && str_contains(haystack: $e->errorInfo[2] ?? '', needle: 'post_like')) {
-                return response()->json(data: null, status: 204);
+            if ($e->getCode() === '23505' && str_contains($e->errorInfo[2] ?? '', 'post_like')) {
+                return response()->json(null, 204);
             }
 
             throw $e;
         } catch (Exception $e) {
-            report(exception: $e);
+            report($e);
 
             throw $e;
         }
