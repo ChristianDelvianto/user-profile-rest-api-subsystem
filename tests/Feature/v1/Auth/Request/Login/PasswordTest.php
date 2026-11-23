@@ -14,18 +14,17 @@ class PasswordTest extends TestCase
 {
     use RefreshDatabase, WithFaker;
 
+    protected string $email = 'test_user@example.com';
+    protected string $name = 'Test User';
     protected string $password = 'password';
+    protected string $username = 'test_user';
 
     #[Override]
     protected function setUp(): void
     {
         parent::setUp();
 
-        // This line is mandatory, otherwise the tests will throw 419 error
-        $this->withHeaders([
-            'Accept' => 'application/json',
-            'Origin' => config('app.url')
-        ]);
+        $this->withHeaders(['Accept' => 'application/json', 'Origin' => config('app.url')]);
 
         $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
     }
@@ -93,9 +92,7 @@ class PasswordTest extends TestCase
     public function test_password_input_with_image_file_value_will_throw_422_error(): void
     {
         // GD extension required for creating fake image
-        $fakeImage = UploadedFile::fake()
-            ->image('test_image.jpg')
-            ->size(1024);
+        $fakeImage = UploadedFile::fake()->image('test_image.jpg')->size(1024);
 
         $this->postJson(route('api.v1.auth.login'), [
                 'email' => fake()->email(),
@@ -105,9 +102,7 @@ class PasswordTest extends TestCase
             ->assertJsonValidationErrorFor('password');
     }
 
-    /**
-     * We are using 'email' key when password invalid, see \v1\Auth\LoginController
-     */
+    // We are using 'email' key when password invalid, see \v1\Auth\LoginController
     public function test_password_input_with_invalid_password_has_email_error_key(): void
     {
         $invalidPassword = $this->password .= '123';

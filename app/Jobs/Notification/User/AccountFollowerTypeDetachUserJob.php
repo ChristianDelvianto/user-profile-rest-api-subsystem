@@ -8,6 +8,7 @@ use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 
 class AccountFollowerTypeDetachUserJob implements ShouldQueue
 {
@@ -21,6 +22,20 @@ class AccountFollowerTypeDetachUserJob implements ShouldQueue
         public User $user
     ) {
         //
+    }
+
+    /**
+     * Get the middleware the job should pass through.
+     *
+     * @return array<int, object>
+     */
+    public function middleware(): array
+    {
+        return [
+            (new WithoutOverlapping("lock:user:{$this->user->id}:notification:account_follower"))
+                ->releaseAfter(60)
+                ->expireAfter(240)
+        ];
     }
 
     /**
@@ -40,7 +55,7 @@ class AccountFollowerTypeDetachUserJob implements ShouldQueue
 
         // If notification is NULL, it's already deleted by cron / scheduler
         if ($notification && 1 === $notification->users()->detach($this->follower->id)) {
-            UpdateGroupsCountCacheJob::dispatch($notification->uuid, -1)->onQueue('high');
+            UpdateGroupsCountCacheJob::dispatch(notification: $notification, count: -1)->onQueue('high');
         }
     }
 }

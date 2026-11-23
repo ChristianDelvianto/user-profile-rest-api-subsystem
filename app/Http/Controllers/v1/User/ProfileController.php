@@ -26,7 +26,7 @@ class ProfileController extends Controller
         $followersCountCacheKey = str_replace('*', $user->id, config('custom.cache.user_stat.pattern.followers_count'));
         $followingCountCacheKey = str_replace('*', $user->id, config('custom.cache.user_stat.pattern.following_count'));
 
-        $cache = Cache::many([$followersCountCacheKey, $followingCountCacheKey]);
+        $cache = Cache::many(keys: [$followersCountCacheKey, $followingCountCacheKey]);
 
         // Fallback to UserStat
         $this->followersCount = $cache[$followersCountCacheKey] ?? $userStats->followers_count;
@@ -34,8 +34,8 @@ class ProfileController extends Controller
 
         if ($request->user() && $request->user()->id !== $user->id) {
             $this->isFollowed = $user->followers()
-                                    ->wherePivot('follower_id', $request->user()->id)
-                                    ->exists();
+                                ->wherePivot('follower_id', $request->user()->id)
+                                ->exists();
         }
 
         // Fallback when $request->user() is following $user but $followersCount has value 0
@@ -44,8 +44,8 @@ class ProfileController extends Controller
         }
 
         return response()->json([
-            'followers_count' => (int) $this->followersCount, // Convert to integer, value could come from cache (String-based)
-            'following_count' => (int) $this->followingCount, // Convert to integer, value could come from cache (String-based)
+            'followers_count' => (int) $this->followersCount, // Convert to integer, the value could come from cache (string-based)
+            'following_count' => (int) $this->followingCount, // Convert to integer, the value could come from cache (string-based)
             'is_followed' => $this->isFollowed,
             'profile' => UserResource::make($user)
         ]);

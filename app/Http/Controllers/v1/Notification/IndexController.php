@@ -50,11 +50,12 @@ class IndexController extends Controller
         if ($pagination->isNotEmpty()) {
             /**
              * Only when the user has notifications, then we will fetch the user stats and set the 'is_read' attribute for each notification.
+             * 
              * This is to avoid unnecessary queries when the user has no notifications.
              */
-            $this->setIsReadAttribute($request->user(), $pagination->getCollection());
+            $this->setIsReadAttribute(user: $request->user(), notifications: $pagination->getCollection());
 
-            $this->setGroupsCountValue($pagination->getCollection());
+            $this->setGroupsCountValue(notifications: $pagination->getCollection());
         }
 
         return response()->json([
@@ -69,29 +70,50 @@ class IndexController extends Controller
      */
     protected function setGroupsCountValue(Collection $notifications): void
     {
+        $groupsCountCacheKeyPattern = config('custom.cache.notification.pattern.groups_count');
+
         $cacheKeys = [];
 
         foreach ($notifications as $notification) {
-            $groupsCountCacheKey = str_replace('*', $notification->uuid, config('custom.cache.notification.pattern.groups_count'));
+            $groupsCountCacheKey = str_replace('*', $notification->uuid, $groupsCountCacheKeyPattern);
 
             array_push($cacheKeys, $groupsCountCacheKey);
         }
 
-        $cache = Cache::many($cacheKeys);
+        /**
+         * Why use Cache::many() instead of fetching cache entries one by one?
+         *
+         * Fetching each notification groups_count cache individually can create unnecessary load on Redis.
+         * Imagine 10,000 users accessing their notifications simultaneously, with
+         * 20 notifications per page.
+         *
+         * The calculation would be:
+         * 10,000 users × 20 notifications = 200,000 individual Redis requests.
+         *
+         * Using Cache::many(), we batch the 20 cache keys into a single request
+         * per user, reducing the total from 200,000 to approximately 10,000 Redis
+         * requests (95% fewer requests).
+         *
+         * This reduces network round trips and Redis request overhead, helping
+         * improve efficiency under concurrent user traffic.
+         */
+        $cache = Cache::many(keys: $cacheKeys);
 
         foreach ($notifications as $notification) {
-            $groupsCountCacheKey = str_replace('*', $notification->uuid, config('custom.cache.notification.pattern.groups_count'));
+            $groupsCountCacheKey = str_replace('*', $notification->uuid, $groupsCountCacheKeyPattern);
 
             $groupsCountCache = $cache[$groupsCountCacheKey];
 
             if (isset($groupsCountCache)) {
-                $notification->setAttribute('groups_count', (int) $groupsCountCache);
+                $notification->setAttribute(key: 'groups_count', value: (int) $groupsCountCache);
             }
         }
     }
 
     /**
-     * Set notifications 'is_read' attribute and the value comes from comparing user's user_stats `last_read_notification_at` with notification's `last_activity_at`.
+     * Set notifications `is_read` attribute and the value comes from comparing user's user_stats `last_read_notification_at` with notification's `last_activity_at`.
+     * 
+     * Tips: If you use VSCode, hover to the function name to read the function description easier. :P (HAHA !)
      */
     protected function setIsReadAttribute(User $user, Collection $notifications): void
     {
@@ -100,7 +122,8 @@ class IndexController extends Controller
         $lastReadNotificationAt = Carbon::parse($userStat->last_read_notification_at);
 
         foreach ($notifications as $notification) {
-            $notification->setAttribute('is_read', $lastReadNotificationAt->gt($notification->last_activity_at));
+            // When $lastReadNotificationAt greater than $notification last_activity_at, we will set `is_read` value to true
+            $notification->setAttribute(key: 'is_read', value: $lastReadNotificationAt->gt($notification->last_activity_at));
         }
     }
 }

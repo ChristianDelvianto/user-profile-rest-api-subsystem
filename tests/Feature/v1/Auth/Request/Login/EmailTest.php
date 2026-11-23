@@ -21,70 +21,12 @@ class EmailTest extends TestCase
     {
         parent::setUp();
 
-        // This line is mandatory, otherwise the tests will throw 419 error
-        $this->withHeaders([
-            'Accept' => 'application/json',
-            'Origin' => config('app.url')
-        ]);
+        $this->withHeaders(['Accept' => 'application/json', 'Origin' => config('app.url')]);
 
         $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
     }
 
-    public function test_email_input_with_array_value_will_throw_422_error(): void
-    {
-        $this->postJson(route('api.v1.auth.login'), [
-                'email' => ['abc', 'def'],
-                'password' => $this->password
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('email');
-    }
-
-    public function test_email_input_with_image_file_value_will_throw_422_error(): void
-    {
-        // GD extension required for creating fake image
-        $fakeImage = UploadedFile::fake()
-            ->image('test_image.jpg')
-            ->size(1024);
-
-        $this->postJson(route('api.v1.auth.login'), [
-                'email' => $fakeImage,
-                'password' => $this->password
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('email');
-    }
-
-    public function test_email_input_with_no_key_will_throw_422_error(): void
-    {
-        $this->postJson(route('api.v1.auth.login'), [
-                'password' => $this->password
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('email');
-    }
-
-    public function test_email_input_with_no_value_will_throw_422_error(): void
-    {
-        $this->postJson(route('api.v1.auth.login'), [
-                'email' => '',
-                'password' => $this->password
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('email');
-    }
-
-    public function test_email_input_with_plain_string_will_throw_422_error(): void
-    {
-        $this->postJson(route('api.v1.auth.login'), [
-                'email' => 'abcde',
-                'password' => $this->password
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('email');
-    }
-
-    public function test_email_input_with_valid_email_and_has_max_character_length_will_pass(): void
+    public function test_email_input_is_valid_although_the_value_reached_max_character_length(): void
     {
         $limit = 255;
         $email = '';
@@ -111,7 +53,70 @@ class EmailTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
-    public function test_email_input_with_valid_email_but_has_more_than_255_character_length_will_throw_422_error(): void
+    public function test_email_input_is_valid_if_the_value_has_valid_email(): void
+    {
+        $user = User::factory()->create(['password' => $this->password]);
+
+        $this->postJson(route('api.v1.auth.login'), [
+                'email' => $user->email,
+                'password' => $this->password
+            ])
+            ->assertOk();
+    }
+
+    public function test_email_input_throws_422_error_if_no_key_for_the_input(): void
+    {
+        $this->postJson(route('api.v1.auth.login'), [
+                'password' => $this->password
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('email');
+    }
+
+    public function test_email_input_throws_422_error_if_the_value_is_an_array(): void
+    {
+        $this->postJson(route('api.v1.auth.login'), [
+                'email' => ['abc', 'def'],
+                'password' => $this->password
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('email');
+    }
+
+    public function test_email_input_throws_422_error_if_the_value_is_a_file(): void
+    {
+        // GD extension required for creating fake image
+        $fakeImage = UploadedFile::fake()->image('test_image.jpg')->size(1024);
+
+        $this->postJson(route('api.v1.auth.login'), [
+                'email' => $fakeImage,
+                'password' => $this->password
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('email');
+    }
+
+    public function test_email_input_throws_422_error_if_the_value_is_an_empty_string(): void
+    {
+        $this->postJson(route('api.v1.auth.login'), [
+                'email' => '',
+                'password' => $this->password
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('email');
+    }
+
+    public function test_email_input_throws_422_error_if_the_value_is_a_plain_string(): void
+    {
+        $this->postJson(route('api.v1.auth.login'), [
+                'email' => 'abcde',
+                'password' => $this->password
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrorFor('email');
+    }
+
+    public function test_email_input_throws_422_error_if_the_value_has_character_length_more_than_255(): void
     {
         $email = '';
         $characterLength = 256;
@@ -130,7 +135,7 @@ class EmailTest extends TestCase
             ->assertJsonValidationErrorFor('email');
     }
 
-    public function test_email_input_with_valid_email_but_no_user_account_related_with_it_will_throw_422_error(): void
+    public function test_email_input_throws_422_error_if_no_user_related_to_the_email(): void
     {
         $this->postJson(route('api.v1.auth.login'), [
                 'email' => 'no_user@example.com',
@@ -138,16 +143,5 @@ class EmailTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrorFor('email');
-    }
-
-    public function test_email_input_with_valid_email_will_pass(): void
-    {
-        $user = User::factory()->create(['password' => $this->password]);
-
-        $this->postJson(route('api.v1.auth.login'), [
-                'email' => $user->email,
-                'password' => $this->password
-            ])
-            ->assertOk();
     }
 }
