@@ -5,7 +5,7 @@ namespace Tests\Feature\v1\Post\Main;
 use App\Enums\NotificationType;
 use App\Jobs\Notification\Post\CreatePostLikeTypeOrAttachNewUserJob;
 use App\Jobs\Notification\UpdateGroupsCountCacheJob;
-use App\Jobs\Post\UpdateLikesCountCacheJob;
+use App\Jobs\PostStat\UpdateLikesCountCacheJob;
 use App\Jobs\UserStat\UpdateNotificationsCountCacheJob;
 use App\Models\Notification;
 use App\Models\Post;
@@ -26,9 +26,10 @@ class LikeTest extends TestCase
 {
     use RefreshDatabase, WithFaker;
 
+    protected int $loopCount = 5;
     protected Post $post;
-    protected User $user;
     protected User $otherUser;
+    protected User $user;
     protected string $postLatestLikesNotificationCacheKey;
     protected string $postLikesCountCacheKey;
     protected string $userNotificationsCountCacheKey;
@@ -41,26 +42,15 @@ class LikeTest extends TestCase
         Cache::flush();
         Queue::fake();
 
-        // This line is mandatory, otherwise the tests will throw 419 error
-        $this->withHeaders([
-            'Accept' => 'application/json',
-            'Origin' => config('app.url')
-        ]);
+        $this->withHeaders(['Accept' => 'application/json', 'Origin' => config('app.url')]);
 
         $this->withoutMiddleware(ThrottleRequestsWithRedis::class);
 
-        $this->user = User::factory()
-                    ->has(UserStat::factory(), 'stats')
-                    ->create();
-
-        $this->otherUser = User::factory()
-                            ->has(UserStat::factory(), 'stats')
-                            ->create();
+        $this->otherUser = User::factory()->has(UserStat::factory(), 'stats')->create();
+        $this->user = User::factory()->has(UserStat::factory(), 'stats')->create();
 
         // $this->post belongs to $this->user
-        $this->post = Post::factory()
-                    ->has(PostStat::factory(), 'stats')
-                    ->create(['user_id' => $this->user->id]);
+        $this->post = Post::factory()->has(PostStat::factory(), 'stats')->create(['user_id' => $this->user->id]);
 
         $this->postLatestLikesNotificationCacheKey = str_replace('*', $this->post->id, config('custom.cache.notification.last_group.pattern.post_like'));
         $this->postLikesCountCacheKey = str_replace('*', $this->post->id, config('custom.cache.post_stat.pattern.likes_count'));
@@ -90,54 +80,54 @@ class LikeTest extends TestCase
             ]);
     }
 
-    public function test_like_from_multiple_users_within_short_interval_will_group_the_users_in_one_notification(): void
-    {
-        $loopCount = 5;
-
-        for ($index = 0; $index < $loopCount; $index++) {
-            $newUser = User::factory()
-                        ->has(UserStat::factory(), 'stats')
-                        ->create();
-
-            $this->actingAs($newUser, 'web')
-                ->postJson(route('api.v1.post.like', ['post' => $this->post->uuid]))
-                ->assertNoContent();
-
-            Queue::pushed(CreatePostLikeTypeOrAttachNewUserJob::class)->last()->handle();
-
-            if ($index === 0) { // First user of the group
-                Queue::assertNotPushed(UpdateGroupsCountCacheJob::class);
-            } else { // Incrementing the notification's groups_count cache value
-                Queue::assertPushed(UpdateGroupsCountCacheJob::class);
-            }
-        }
-
-        $this->assertDatabaseCount(Notification::class, 1)
-            ->assertDatabaseCount('notification_user', $loopCount);
-    }
-
     public function test_like_idempotency(): void
     {
-        $loopCount = 5;
-
-        for ($index = 0; $index < $loopCount; $index++) {
+        for ($index = 0; $index < $this->loopCount; $index++) {
             $this->actingAs($this->otherUser, 'web')
                 ->postJson(route('api.v1.post.like', ['post' => $this->post->uuid]))
                 ->assertNoContent();
         }
 
         $this->assertDatabaseCount('post_like', 1);
-
-        Queue::assertPushedTimes(UpdateLikesCountCacheJob::class, 1);
-
-        Queue::assertPushedTimes(CreatePostLikeTypeOrAttachNewUserJob::class, 1);
     }
 
-    public function test_like_queue_does_not_run_when_queue_middleware_lock_is_held(): void
+    public function test_like_returns_response_204_code_although_post_deleted(): void
+    {
+        // Soft delete the post
+        $this->post->delete();
+
+        $this->actingAs($this->otherUser, 'web')
+            ->postJson(route('api.v1.post.like', ['post' => $this->post->uuid]))
+            ->assertNoContent();
+    }
+
+
+    public function test_like_route_exists(): void
+    {
+        $this->postJson(route('api.v1.post.like', ['post' => $this->post->uuid]))
+            ->assertUnauthorized();
+    }
+
+    public function test_like_route_requires_authentication(): void
+    {
+        $this->postJson(route('api.v1.post.like', ['post' => $this->post->uuid]))
+            ->assertUnauthorized();
+    }
+
+    public function test_like_throws_404_error_if_post_not_found(): void
+    {
+        $nonExistsPostUuid = Str::uuid()->toString();
+        
+        $this->actingAs($this->otherUser, 'web')
+            ->postJson(route('api.v1.post.like', ['post' => $nonExistsPostUuid]))
+            ->assertNotFound();
+    }
+
+    public function test_like_UpdateLikesCountCacheJob_queue_does_not_run_when_queue_middleware_lock_is_held(): void
     {
         $cacheValue = 10;
 
-        // Put initial value 10 ($this->post has $cacheValue 'likes_count' cache)
+        // Put initial cache value ($this->post has $cacheValue 'likes_count' cache)
         Cache::put($this->postLikesCountCacheKey, $cacheValue, now()->addSeconds(10));
 
         $job = new UpdateLikesCountCacheJob($this->post, 1);
@@ -164,19 +154,7 @@ class LikeTest extends TestCase
         }
     }
 
-    public function test_like_route_exists(): void
-    {
-        $this->postJson(route('api.v1.post.like', ['post' => $this->post->uuid]))
-            ->assertUnauthorized();
-    }
-
-    public function test_like_route_requires_authentication(): void
-    {
-        $this->postJson(route('api.v1.post.like', ['post' => $this->post->uuid]))
-            ->assertUnauthorized();
-    }
-
-    public function test_like_will_create_new_notification_after_X_minutes(): void
+    public function test_like_will_create_new_notification_after_pass_group_gap_internal(): void
     {
         // $this->otherUser will be the first user to like the post
         $this->actingAs($this->otherUser, 'web')
@@ -198,9 +176,7 @@ class LikeTest extends TestCase
         $this->travel(config('custom.notification.group_gap_interval'))->minutes();
 
         // Get another like
-        $newUser = User::factory()
-                    ->has(UserStat::factory(), 'stats')
-                    ->create();
+        $newUser = User::factory()->has(UserStat::factory(), 'stats')->create();
 
         $this->actingAs($newUser, 'web')
             ->postJson(route('api.v1.post.like', ['post' => $this->post->uuid]))
@@ -226,8 +202,8 @@ class LikeTest extends TestCase
         });
 
         Queue::assertPushed(CreatePostLikeTypeOrAttachNewUserJob::class, function (CreatePostLikeTypeOrAttachNewUserJob $job) {
-            return $job->post->id === $this->post->id
-                && $job->user->id === $this->otherUser->id;
+            return $job->user->id === $this->otherUser->id
+                && $job->post->id === $this->post->id;
         });
 
         // Process the job (To see if child job dispatched or not)
@@ -235,6 +211,28 @@ class LikeTest extends TestCase
 
         // The child job
         Queue::assertNotPushed(UpdateGroupsCountCacheJob::class);
+    }
+
+    public function test_like_will_group_users_in_one_notification_if_followed_by_multiple_users_within_short_interval(): void
+    {
+        for ($index = 0; $index < $this->loopCount; $index++) {
+            $newUser = User::factory()->has(UserStat::factory(), 'stats')->create();
+
+            $this->actingAs($newUser, 'web')
+                ->postJson(route('api.v1.post.like', ['post' => $this->post->uuid]))
+                ->assertNoContent();
+
+            Queue::pushed(CreatePostLikeTypeOrAttachNewUserJob::class)->last()->handle();
+
+            if ($index === 0) { // First user of the notification, so no need to update groups_count
+                Queue::assertNotPushed(UpdateGroupsCountCacheJob::class);
+            } else {
+                Queue::assertPushed(UpdateGroupsCountCacheJob::class);
+            }
+        }
+
+        $this->assertDatabaseCount(Notification::class, 1)
+            ->assertDatabaseCount('notification_user', $this->loopCount);
     }
 
     public function test_like_will_not_dispatch_create_notification_queue_if_liked_by_post_owner(): void
@@ -248,11 +246,9 @@ class LikeTest extends TestCase
 
     public function test_like_will_not_dispatch_queues_if_post_already_liked(): void
     {
-        $loopCount = 5;
-
         $this->post->likes()->attach($this->otherUser->id);
 
-        for ($index = 0; $index < $loopCount; $index++) {
+        for ($index = 0; $index < $this->loopCount; $index++) {
             $this->actingAs($this->otherUser, 'web')
                 ->postJson(route('api.v1.post.like', ['post' => $this->post->uuid]))
                 ->assertNoContent();
@@ -273,7 +269,7 @@ class LikeTest extends TestCase
         Queue::assertNothingPushed();
     }
 
-    public function test_like_will_not_store_the_like_if_post_deleted(): void
+    public function test_like_will_not_store_like_record_if_post_deleted(): void
     {
         // Soft delete the post
         $this->post->delete();
@@ -288,18 +284,10 @@ class LikeTest extends TestCase
         ]);
     }
 
-    public function test_like_will_return_response_204_code_if_successful(): void
-    {
-        $this->actingAs($this->otherUser, 'web')
-            ->postJson(route('api.v1.post.like', ['post' => $this->post->uuid]))
-            ->assertNoContent();
-    }
-
     /**
-     * Note: Time travel will not work if CACHE_STORE has value 'redis',
-     * use other driver and clear app cache.
+     * Note: Time travel will not work if CACHE_STORE has value 'redis'.
      */
-    public function test_like_will_reinitiate_likes_count_cache_after_pass_group_gap_internal(): void
+    public function test_like_will_reinitiate_post_likes_count_cache_after_pass_cache_ttl_duration(): void
     {
         config(['cache.default' => 'array']);
 
@@ -320,9 +308,7 @@ class LikeTest extends TestCase
         // Ensures cache expired
         $this->assertFalse(Cache::has($this->postLikesCountCacheKey));
 
-        $newUser = User::factory()
-                    ->has(UserStat::factory(), 'stats')
-                    ->create();
+        $newUser = User::factory()->has(UserStat::factory(), 'stats')->create();
 
         $this->actingAs($newUser, 'web')
             ->postJson(route('api.v1.post.like', ['post' => $this->post->uuid]))
@@ -335,35 +321,20 @@ class LikeTest extends TestCase
         $this->assertTrue(Cache::has($this->postLikesCountCacheKey));
     }
 
-    public function test_like_will_return_response_204_code_if_post_deleted(): void
-    {
-        // Soft delete the post
-        $this->post->delete();
-
-        $this->actingAs($this->otherUser, 'web')
-            ->postJson(route('api.v1.post.like', ['post' => $this->post->uuid]))
-            ->assertNoContent();
-    }
-
-    public function test_like_will_return_response_404_code_if_post_not_found(): void
-    {
-        $nonExistsPostUuid = Str::uuid()->toString();
-        
-        $this->actingAs($this->otherUser, 'web')
-            ->postJson(route('api.v1.post.like', ['post' => $nonExistsPostUuid]))
-            ->assertNotFound();
-    }
-
-    public function test_like_will_store_likes_count_to_cache(): void
+    public function test_like_will_store_new_notification_to_cache(): void
     {
         $this->actingAs($this->otherUser, 'web')
             ->postJson(route('api.v1.post.like', ['post' => $this->post->uuid]))
             ->assertNoContent();
 
         // Process the job (To see if cache created)
-        Queue::pushed(UpdateLikesCountCacheJob::class, fn (UpdateLikesCountCacheJob $job) => $job->handle());
+        Queue::pushed(CreatePostLikeTypeOrAttachNewUserJob::class, fn (CreatePostLikeTypeOrAttachNewUserJob $job) => $job->handle());
 
-        $this->assertSame(1, (int) Cache::get($this->postLikesCountCacheKey, 0));
+        $this->assertTrue(Cache::has($this->postLatestLikesNotificationCacheKey));
+
+        $notification = Cache::get($this->postLatestLikesNotificationCacheKey, null);
+
+        $this->assertTrue($notification instanceof Notification);
     }
 
     public function test_like_will_store_new_notification_to_cache_after_pass_group_gap_internal(): void
@@ -382,10 +353,8 @@ class LikeTest extends TestCase
         // Travel X minutes
         $this->travel(config('custom.notification.group_gap_interval'))->minutes();
 
-        // New user drop a new like
-        $newUser = User::factory()
-                    ->has(UserStat::factory(), 'stats')
-                    ->create();
+        // New user drop a like
+        $newUser = User::factory()->has(UserStat::factory(), 'stats')->create();
 
         $this->actingAs($newUser, 'web')
             ->postJson(route('api.v1.post.like', ['post' => $this->post->uuid]))
@@ -402,54 +371,22 @@ class LikeTest extends TestCase
         $this->assertFalse($firstNotification->id === $newNotification->id);
     }
 
-    public function test_like_will_store_notification_to_cache(): void
+    public function test_like_will_store_post_likes_count_to_cache(): void
     {
         $this->actingAs($this->otherUser, 'web')
             ->postJson(route('api.v1.post.like', ['post' => $this->post->uuid]))
             ->assertNoContent();
 
         // Process the job (To see if cache created)
-        Queue::pushed(CreatePostLikeTypeOrAttachNewUserJob::class, fn (CreatePostLikeTypeOrAttachNewUserJob $job) => $job->handle());
+        Queue::pushed(UpdateLikesCountCacheJob::class, fn (UpdateLikesCountCacheJob $job) => $job->handle());
 
-        $this->assertTrue(Cache::has($this->postLatestLikesNotificationCacheKey));
-
-        $notification = Cache::get($this->postLatestLikesNotificationCacheKey, null);
-
-        $this->assertTrue($notification instanceof Notification);
-    }
-
-    public function test_like_will_update_likes_count_cache(): void
-    {
-        $usersCount = 5;
-
-        for ($index = 0; $index < $usersCount; $index++) {
-            $newUser = User::factory()
-                        ->has(UserStat::factory(), 'stats')
-                        ->create();
-
-            $this->actingAs($newUser, 'web')
-                ->postJson(route('api.v1.post.like', ['post' => $this->post->uuid]))
-                ->assertNoContent();
-
-            // Process the job
-            Queue::pushed(UpdateLikesCountCacheJob::class)->last()->handle();
-
-            // Ensures $this->post likes_count cache progressively incremented
-            $this->assertSame(($index + 1), (int) Cache::get($this->postLikesCountCacheKey, 0));
-        }
-
-        // Ensures $this->post likes_count cache match with $usersCount
-        $this->assertSame($usersCount, (int) Cache::get($this->postLikesCountCacheKey, 0));
+        $this->assertSame(1, (int) Cache::get($this->postLikesCountCacheKey, 0));
     }
 
     public function test_like_will_update_notifications_groups_count_cache(): void
     {
-        $usersCount = 5;
-
-        for ($index = 0; $index < $usersCount; $index++) {
-            $newUser = User::factory()
-                        ->has(UserStat::factory(), 'stats')
-                        ->create();
+        for ($index = 0; $index < $this->loopCount; $index++) {
+            $newUser = User::factory()->has(UserStat::factory(), 'stats')->create();
 
             $this->actingAs($newUser, 'web')
                 ->postJson(route('api.v1.post.like', ['post' => $this->post->uuid]))
@@ -479,18 +416,34 @@ class LikeTest extends TestCase
 
         $groupsCountCacheKey = str_replace('*', $notification->uuid, config('custom.cache.notification.pattern.groups_count'));
 
-        // Ensures $notification groups_count cache match with $usersCount
-        $this->assertSame($usersCount, (int) Cache::get($groupsCountCacheKey, 0));
+        // Ensures $notification groups_count cache match with $this->loopCount
+        $this->assertSame($this->loopCount, (int) Cache::get($groupsCountCacheKey, 0));
+    }
+
+    public function test_like_will_update_post_likes_count_cache(): void
+    {
+        for ($index = 0; $index < $this->loopCount; $index++) {
+            $newUser = User::factory()->has(UserStat::factory(), 'stats')->create();
+
+            $this->actingAs($newUser, 'web')
+                ->postJson(route('api.v1.post.like', ['post' => $this->post->uuid]))
+                ->assertNoContent();
+
+            // Process the job
+            Queue::pushed(UpdateLikesCountCacheJob::class)->last()->handle();
+
+            // Ensures $this->post likes_count cache progressively incremented
+            $this->assertSame(($index + 1), (int) Cache::get($this->postLikesCountCacheKey, 0));
+        }
+
+        // Ensures $this->post likes_count cache match with $this->loopCount
+        $this->assertSame($this->loopCount, (int) Cache::get($this->postLikesCountCacheKey, 0));
     }
 
     public function test_like_will_update_user_notifications_count_cache(): void
     {
-        $usersCount = 5;
-
-        for ($index = 0; $index < $usersCount; $index++) {
-            $newUser = User::factory()
-                        ->has(UserStat::factory(), 'stats')
-                        ->create();
+        for ($index = 0; $index < $this->loopCount; $index++) {
+            $newUser = User::factory()->has(UserStat::factory(), 'stats')->create();
 
             $this->actingAs($newUser, 'web')
                 ->postJson(route('api.v1.post.like', ['post' => $this->post->uuid]))
@@ -516,8 +469,8 @@ class LikeTest extends TestCase
             $this->assertSame(($index + 1), (int) Cache::get($this->userNotificationsCountCacheKey, 0));
         }
 
-        // Ensures $this->user notifications_count cache match with $usersCount
-        $this->assertSame($usersCount, (int) Cache::get($this->userNotificationsCountCacheKey, 0));
+        // Ensures $notification groups_count cache match with $this->loopCount
+        $this->assertSame($this->loopCount, (int) Cache::get($this->userNotificationsCountCacheKey, 0));
     }
 
     // @todo: add more tests

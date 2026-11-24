@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Jobs\Post;
+namespace App\Jobs\PostStat;
 
 use App\Models\Post;
 use App\Models\PostStat;

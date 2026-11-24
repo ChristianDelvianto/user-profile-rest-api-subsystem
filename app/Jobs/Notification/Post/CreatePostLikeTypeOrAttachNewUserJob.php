@@ -65,9 +65,9 @@ class CreatePostLikeTypeOrAttachNewUserJob implements ShouldQueue
                         });
 
         if ($notification && Carbon::parse($notification->created_at)->diffInMinutes(now(), true) < config('custom.notification.group_gap_interval')) {
-            $notification->users()->attach($this->user->id);
+            $notification->users()->attachOrFail($this->user->id);
 
-            UpdateGroupsCountCacheJob::dispatch($notification->uuid, 1)->onQueue('high');
+            UpdateGroupsCountCacheJob::dispatch(notification: $notification, count: 1)->onQueue('high');
         } else {
             // Wrap in transaction
             $notification = DB::transaction(function (): Notification {
@@ -90,6 +90,6 @@ class CreatePostLikeTypeOrAttachNewUserJob implements ShouldQueue
             Cache::put($cacheKey, $notification, $cacheDuration);
         }
 
-        UpdateNotificationsCountCacheJob::dispatch($this->post->user_id, 1)->onQueue('high');
+        UpdateNotificationsCountCacheJob::dispatch(userId: $this->post->user_id, count: 1)->onQueue('high');
     }
 }
