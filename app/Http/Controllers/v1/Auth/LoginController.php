@@ -17,8 +17,8 @@ class LoginController extends Controller
      */
     public function __invoke(LoginRequest $request): JsonResponse
     {
-        if (! Auth::guard('web')->attempt($request->validated())) {
-            throw ValidationException::withMessages([
+        if (! Auth::guard('web')->attempt(credentials: $request->validated(), remember: false)) {
+            throw ValidationException::withMessages(messages: [
                 'email' => ['The provided credentials are incorrect.']
             ]);
         }
