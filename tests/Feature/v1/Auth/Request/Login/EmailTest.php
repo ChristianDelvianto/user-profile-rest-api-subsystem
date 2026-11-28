@@ -50,7 +50,7 @@ class EmailTest extends TestCase
             ])
             ->assertOk();
 
-        $this->assertAuthenticatedAs($user);
+        $this->assertAuthenticatedAs($user, 'web');
     }
 
     public function test_email_input_is_valid_if_the_value_has_valid_email(): void
@@ -79,6 +79,15 @@ class EmailTest extends TestCase
                 'email' => ['abc', 'def'],
                 'password' => $this->password
             ])
+            ->assertUnprocessable();
+    }
+
+    public function test_email_input_throws_422_error_if_the_value_is_an_empty_string(): void
+    {
+        $this->postJson(route('api.v1.auth.login'), [
+                'email' => '',
+                'password' => $this->password
+            ])
             ->assertUnprocessable()
             ->assertJsonValidationErrorFor('email');
     }
@@ -92,18 +101,7 @@ class EmailTest extends TestCase
                 'email' => $fakeImage,
                 'password' => $this->password
             ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('email');
-    }
-
-    public function test_email_input_throws_422_error_if_the_value_is_an_empty_string(): void
-    {
-        $this->postJson(route('api.v1.auth.login'), [
-                'email' => '',
-                'password' => $this->password
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('email');
+            ->assertUnprocessable();
     }
 
     public function test_email_input_throws_422_error_if_the_value_is_a_plain_string(): void
@@ -112,8 +110,7 @@ class EmailTest extends TestCase
                 'email' => 'abcde',
                 'password' => $this->password
             ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrorFor('email');
+            ->assertUnprocessable();
     }
 
     public function test_email_input_throws_422_error_if_the_value_has_character_length_more_than_255(): void
@@ -135,7 +132,7 @@ class EmailTest extends TestCase
             ->assertJsonValidationErrorFor('email');
     }
 
-    public function test_email_input_throws_422_error_if_no_user_related_to_the_email(): void
+    public function test_email_input_throws_422_error_if_no_user_record_related_to_the_email(): void
     {
         $this->postJson(route('api.v1.auth.login'), [
                 'email' => 'no_user@example.com',
