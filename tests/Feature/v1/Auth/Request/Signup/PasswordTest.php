@@ -46,8 +46,6 @@ class PasswordTest extends TestCase
 
         $user = User::firstWhere('email', $this->email);
 
-        $this->assertNotNull($user);
-
         // Check with Hash::check
         $this->assertTrue(Hash::check($passwordWithSpacesAtTheBeginning, $user->password));
     }
@@ -193,7 +191,7 @@ class PasswordTest extends TestCase
             ->assertJsonValidationErrorFor('password');
     }
 
-    public function test_password_input_throws_422_error_if_the_value_has_character_length_less_than_X(): void
+    public function test_password_input_throws_422_error_if_the_value_has_character_length_less_than_8(): void
     {
         $shortPassword = substr($this->password, 0, 7);
 
@@ -246,9 +244,7 @@ class PasswordTest extends TestCase
     public function test_password_input_throws_422_error_if_the_value_is_a_file(): void
     {
         // GD extension required for creating fake image
-        $fakeImage = UploadedFile::fake()
-            ->image('test_image.jpg')
-            ->size(1024);
+        $fakeImage = UploadedFile::fake()->image('test_image.jpg')->size(1024);
 
         $this->postJson(route('api.v1.auth.signup'), [
                 'username' => $this->username,
