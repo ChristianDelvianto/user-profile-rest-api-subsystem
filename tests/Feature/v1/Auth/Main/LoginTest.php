@@ -52,9 +52,11 @@ class LoginTest extends TestCase
 
         $this->assertAuthenticatedAs($this->user, 'web');
 
+        // Logout
         $this->postJson(route('api.v1.auth.logout'))
             ->assertNoContent();
 
+        // Assert unauthenticated
         $this->assertGuest('web');
 
         // Create different user
@@ -90,7 +92,7 @@ class LoginTest extends TestCase
         $this->assertAuthenticatedAs($this->user, 'web');
     }
 
-    public function test_login_will_trigger_throttle_guard_if_attempts_more_than_X_times(): void
+    public function test_login_throws_429_error_if_attempts_failed_more_than_X_times(): void
     {
         // We will enable throttleWithRedis for this test
         $this->withMiddleware(ThrottleRequestsWithRedis::class);
@@ -130,20 +132,6 @@ class LoginTest extends TestCase
 
         // Verify the throttle has been removed
         $this->assertFalse($loginLimiter->isBlocked($requestIp, $this->user->email));
-    }
-
-    public function test_login_will_return_response_contains_expected_fields(): void
-    {
-        $this->postJson(route('api.v1.auth.login'), [
-                'email' => $this->user->email,
-                'password' => $this->password
-            ])
-            ->assertOk()
-            ->assertJson(function (AssertableJson $json) {
-                $json->has('is_verified')
-                    ->has('profile')
-                    ->etc();
-            });
     }
 
     public function test_login_will_authenticate_if_use_different_ip(): void
@@ -191,5 +179,19 @@ class LoginTest extends TestCase
 
         // Verify the throttle has been removed
         $this->assertFalse($loginLimiter->isBlocked($requestIp1, $this->user->email));
+    }
+
+    public function test_login_will_return_response_contains_expected_fields(): void
+    {
+        $this->postJson(route('api.v1.auth.login'), [
+                'email' => $this->user->email,
+                'password' => $this->password
+            ])
+            ->assertOk()
+            ->assertJson(function (AssertableJson $json) {
+                $json->has('is_verified')
+                    ->has('profile')
+                    ->etc();
+            });
     }
 }
